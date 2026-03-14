@@ -1,318 +1,689 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useStore } from '../store/useStore';
 import { useNavigate } from 'react-router-dom';
 // @ts-ignore
-import {
-  DndContext,
-  closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, DragOverlay } from '@dnd-kit/core';
 // @ts-ignore
-// @ts-ignore
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  useSortable
-} from '@dnd-kit/sortable';
+import { useSortable } from '@dnd-kit/sortable';
 // @ts-ignore
 import { CSS } from '@dnd-kit/utilities';
+// @ts-ignore
+import { useDroppable } from '@dnd-kit/core';
 
 const API_URL = 'http://localhost:8000/api';
 
-// --- Subcomponent for Draggable Faculty ---
-function SortableFacultyItem({ id, name, onRemove }: { id: string, name: string, onRemove: any }) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id });
+/* ═══════════════════════════════════════════════════════
+   SHARED STYLES
+   ═══════════════════════════════════════════════════════ */
+const glassCard: React.CSSProperties = {
+  background: 'rgba(255,255,255,0.03)',
+  border: '1px solid rgba(255,255,255,0.06)',
+  borderRadius: 16,
+  backdropFilter: 'blur(8px)',
+};
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '10px 14px',
+  borderRadius: 10,
+  border: '1px solid rgba(255,255,255,0.1)',
+  background: 'rgba(0,0,0,0.25)',
+  color: '#e2e8f0',
+  fontSize: 13,
+  fontWeight: 500,
+  outline: 'none',
+  transition: 'all 0.2s',
+  fontFamily: "'Inter', sans-serif",
+  boxSizing: 'border-box' as const,
+};
+const btnPrimary: React.CSSProperties = {
+  padding: '8px 16px',
+  border: 'none',
+  borderRadius: 10,
+  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+  color: '#fff',
+  fontWeight: 700,
+  fontSize: 13,
+  cursor: 'pointer',
+  boxShadow: '0 4px 16px rgba(99,102,241,0.25)',
+  transition: 'all 0.2s',
+  fontFamily: "'Inter', sans-serif",
+};
+const iconBtnStyle: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  borderRadius: 8,
+  border: '1px solid rgba(255,255,255,0.08)',
+  background: 'rgba(255,255,255,0.04)',
+  color: '#94a3b8',
+  fontSize: 13,
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  transition: 'all 0.15s',
+  fontFamily: "'Inter', sans-serif",
+};
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+const ACCENT_COLORS = ['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
 
-  return (
-    <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="bg-slate-700 p-3 rounded-lg mb-2 shadow flex justify-between cursor-grab active:cursor-grabbing border border-slate-600 hover:border-blue-400">
-      <span className="font-semibold text-slate-200">{name}</span>
-      {onRemove && (
-        <button onClick={(e) => { e.stopPropagation(); onRemove(id); }} className="text-red-400 hover:text-red-300 text-sm z-10 pointer-events-auto">
-          ✕
-        </button>
-      )}
-    </div>
-  );
-}
-
+/* ═══════════════════════════════════════════════════════
+   MAIN CONFIGURATION COMPONENT
+   ═══════════════════════════════════════════════════════ */
 export default function Configuration() {
   const { currentConfig } = useStore();
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'branches'|'semesters'|'faculties'|'rooms'|'mapping'>('branches');
 
-  const [branches, setBranches] = useState([]);
-  const [semesters, setSemesters] = useState([]);
-  const [faculties, setFaculties] = useState([]);
-  const [rooms, setRooms] = useState([]);
+  // Data state
+  const [branches, setBranches] = useState<any[]>([]);
+  const [semesters, setSemesters] = useState<any[]>([]);
+  const [faculties, setFaculties] = useState<any[]>([]);
+  const [subjects, setSubjects] = useState<any[]>([]);
+  const [rooms, setRooms] = useState<any[]>([]);
 
-  // Data Loading
-  useEffect(() => {
-    fetchData();
-  }, []);
+  // Selection
+  const [selectedSemId, setSelectedSemId] = useState<number | null>(null);
+  const [showAllFaculty, setShowAllFaculty] = useState(false);
+  const [mappedFaculties, setMappedFaculties] = useState<any[]>([]);
 
-  const fetchData = async () => {
-    const [b, s, f, r] = await Promise.all([
+  // Inline edit
+  const [editingItem, setEditingItem] = useState<{ type: string; id: number; field: string; value: string } | null>(null);
+
+  // Add modals
+  const [addBranchName, setAddBranchName] = useState('');
+  const [addSemName, setAddSemName] = useState('');
+  const [addSemBranchId, setAddSemBranchId] = useState<number | null>(null);
+  const [addFacultyName, setAddFacultyName] = useState('');
+  const [addSubjectName, setAddSubjectName] = useState('');
+  const [addSubjectHours, setAddSubjectHours] = useState('4');
+  const [addRoomName, setAddRoomName] = useState('');
+  const [addRoomCapacity, setAddRoomCapacity] = useState('60');
+  const [showAddSem, setShowAddSem] = useState<number | null>(null); // branch id to show add-sem form
+
+  // Tabs & Custom Modal
+  const [activeTab, setActiveTab] = useState<'faculty' | 'rooms'>('faculty');
+  const [confirmDeleteObj, setConfirmDeleteObj] = useState<{ type: string; id: number } | null>(null);
+
+  // Drag state
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  /* ─── Data fetching ─── */
+  const fetchAll = useCallback(async () => {
+    const [b, s, f, r, sub] = await Promise.all([
       axios.get(`${API_URL}/branches`),
       axios.get(`${API_URL}/semesters`),
       axios.get(`${API_URL}/faculties`),
-      axios.get(`${API_URL}/rooms`)
+      axios.get(`${API_URL}/rooms`),
+      axios.get(`${API_URL}/subjects`),
     ]);
     setBranches(b.data);
     setSemesters(s.data);
     setFaculties(f.data);
     setRooms(r.data);
+    setSubjects(sub.data);
+  }, []);
+
+  useEffect(() => { fetchAll(); }, [fetchAll]);
+
+  // Fetch mapped faculties when semester changes
+  useEffect(() => {
+    if (selectedSemId) {
+      axios.get(`${API_URL}/mappings/faculty/${selectedSemId}`).then(r => setMappedFaculties(r.data));
+    } else {
+      setMappedFaculties([]);
+    }
+  }, [selectedSemId]);
+
+  const semSubjects = subjects.filter((s: any) => s.semester_id === selectedSemId);
+
+  /* ─── CRUD helpers ─── */
+  const handleAddBranch = async () => {
+    if (!addBranchName.trim()) return;
+    await axios.post(`${API_URL}/branches`, { name: addBranchName.trim() });
+    setAddBranchName('');
+    fetchAll();
   };
 
-  // Generic additions
-  const handleAdd = async (type: string, payload: any) => {
-    await axios.post(`${API_URL}/${type}`, payload);
-    fetchData();
+  const handleAddSemester = async (branchId: number) => {
+    if (!addSemName.trim()) return;
+    await axios.post(`${API_URL}/semesters`, { name: addSemName.trim(), branch_id: branchId });
+    setAddSemName('');
+    setShowAddSem(null);
+    fetchAll();
   };
+
+  const handleAddFaculty = async () => {
+    if (!addFacultyName.trim()) return;
+    await axios.post(`${API_URL}/faculties`, { name: addFacultyName.trim() });
+    setAddFacultyName('');
+    fetchAll();
+  };
+
+  const handleAddSubject = async () => {
+    if (!addSubjectName.trim() || !selectedSemId) return;
+    await axios.post(`${API_URL}/subjects`, { name: addSubjectName.trim(), semester_id: selectedSemId, weekly_hours: parseFloat(addSubjectHours) || 4 });
+    setAddSubjectName('');
+    setAddSubjectHours('4');
+    fetchAll();
+  };
+
+  const handleAddRoom = async () => {
+    if (!addRoomName.trim()) return;
+    await axios.post(`${API_URL}/rooms`, { name: addRoomName.trim(), capacity: parseInt(addRoomCapacity) || 60 });
+    setAddRoomName('');
+    setAddRoomCapacity('60');
+    fetchAll();
+  };
+
+  const handleDelete = (type: string, id: number) => {
+    setConfirmDeleteObj({ type, id });
+  };
+
+  const confirmDeletion = async () => {
+    if (!confirmDeleteObj) return;
+    const { type, id } = confirmDeleteObj;
+    await axios.delete(`${API_URL}/${type}/${id}`);
+    if (type === 'semesters' && id === selectedSemId) setSelectedSemId(null);
+    setConfirmDeleteObj(null);
+    fetchAll();
+  };
+
+  const handleUnmapFaculty = async (facultyId: number) => {
+    if (!selectedSemId) return;
+    await axios.delete(`${API_URL}/mappings/faculty/${selectedSemId}/${facultyId}`);
+    setMappedFaculties(prev => prev.filter((f: any) => f.id !== facultyId));
+  };
+
+  const handleInlineEdit = async () => {
+    if (!editingItem) return;
+    const { type, id, field, value } = editingItem;
+    await axios.put(`${API_URL}/${type}/${id}`, { [field]: field === 'weekly_hours' || field === 'capacity' ? parseFloat(value) : value });
+    setEditingItem(null);
+    fetchAll();
+  };
+
+  /* ─── Drag handlers ─── */
+  const handleDragStart = (event: any) => setActiveDragId(event.active.id);
+  const handleDragEnd = async (event: any) => {
+    setActiveDragId(null);
+    const { active, over } = event;
+    if (!over) return;
+
+    // Drop on faculty-assigned zone
+    if (over.id === 'faculty-drop-zone' && active.id.startsWith('fac-')) {
+      const facId = parseInt(active.id.replace('fac-', ''));
+      if (selectedSemId && !mappedFaculties.find((f: any) => f.id === facId)) {
+        await axios.post(`${API_URL}/mappings/faculty`, { semester_id: selectedSemId, faculty_id: facId });
+        const fac = faculties.find((f: any) => f.id === facId);
+        if (fac) setMappedFaculties(prev => [...prev, fac]);
+      }
+    }
+
+    // Drop on dustbin
+    if (over.id === 'dustbin' && active.id.startsWith('fac-')) {
+      const facId = parseInt(active.id.replace('fac-', ''));
+      handleDelete('faculties', facId);
+    }
+  };
+
+  const selectedSem = semesters.find((s: any) => s.id === selectedSemId);
+  const selectedBranch = selectedSem ? branches.find((b: any) => b.id === selectedSem.branch_id) : null;
 
   return (
-    <div className="flex h-screen bg-slate-900 text-white">
-      {/* Sidebar Navigation */}
-      <div className="w-64 bg-slate-800 border-r border-slate-700 flex flex-col p-4">
-        <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-emerald-400 mb-8 border-b border-slate-700 pb-4">
-          Config Data
-        </h2>
-        
-        <nav className="flex flex-col gap-2 flex-grow">
-          {['branches', 'semesters', 'faculties', 'rooms', 'mapping'].map((tab) => (
-            <button key={tab} 
-              className={`text-left px-4 py-3 rounded-xl transition font-semibold tracking-wide ${activeTab === tab ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 hover:bg-slate-700 hover:text-white'}`}
-              onClick={() => setActiveTab(tab as any)}>
-              {tab.charAt(0).toUpperCase() + tab.slice(1)}
+    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+      <div style={{ display: 'flex', height: '100vh', background: 'linear-gradient(135deg, #0a0e1a 0%, #0f1629 40%, #131b33 100%)', color: '#fff', fontFamily: "'Inter', sans-serif", overflow: 'hidden' }}>
+
+        {/* ════════════ LEFT PANEL — Branch Tree ════════════ */}
+        <div style={{ width: 260, minWidth: 260, borderRight: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {/* Header */}
+          <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg, #818cf8, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              {currentConfig?.name || 'Timetable'}
+            </h2>
+            <p style={{ color: '#64748b', fontSize: 11, margin: '4px 0 0' }}>Screen 2 — Config Data</p>
+          </div>
+
+          {/* Add Branch */}
+          <div style={{ padding: '12px 16px', display: 'flex', gap: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+            <input
+              placeholder="Branch name…"
+              value={addBranchName}
+              onChange={e => setAddBranchName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleAddBranch()}
+              style={{ ...inputStyle, fontSize: 12, padding: '8px 10px' }}
+            />
+            <button onClick={handleAddBranch} style={{ ...iconBtnStyle, background: 'rgba(99,102,241,0.15)', color: '#818cf8', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>+</button>
+          </div>
+
+          {/* Branch → Semester tree */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
+            {branches.map((branch: any, bi: number) => {
+              const branchSems = semesters.filter((s: any) => s.branch_id === branch.id);
+              const accent = ACCENT_COLORS[bi % ACCENT_COLORS.length];
+              return (
+                <div key={branch.id} style={{ marginBottom: 8 }}>
+                  {/* Branch header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 8px', borderRadius: 10, background: `${accent}11`, border: `1px solid ${accent}22`, marginBottom: 4 }}>
+                    <div style={{ width: 8, height: 8, borderRadius: '50%', background: accent, flexShrink: 0 }} />
+                    {editingItem?.type === 'branches' && editingItem.id === branch.id ? (
+                      <input autoFocus value={editingItem.value} onChange={e => setEditingItem({ ...editingItem, value: e.target.value })}
+                        onKeyDown={e => { if (e.key === 'Enter') handleInlineEdit(); if (e.key === 'Escape') setEditingItem(null); }}
+                        onBlur={handleInlineEdit}
+                        style={{ ...inputStyle, fontSize: 12, padding: '4px 8px', flexGrow: 1 }} />
+                    ) : (
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', flexGrow: 1, cursor: 'default' }}>{branch.name}</span>
+                    )}
+                    <button onClick={() => setEditingItem({ type: 'branches', id: branch.id, field: 'name', value: branch.name })} style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 10, borderColor: 'transparent', background: 'transparent', color: '#64748b' }} title="Edit">✏️</button>
+                    <button onClick={() => handleDelete('branches', branch.id)} style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 10, borderColor: 'transparent', background: 'transparent', color: '#64748b' }} title="Delete">🗑️</button>
+                    <button onClick={() => { setShowAddSem(showAddSem === branch.id ? null : branch.id); setAddSemName(''); }} style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 12, borderColor: 'transparent', background: 'transparent', color: accent }} title="Add Semester">+</button>
+                  </div>
+
+                  {/* Add semester inline */}
+                  {showAddSem === branch.id && (
+                    <div style={{ display: 'flex', gap: 4, padding: '4px 8px 4px 24px', animation: 'fadeInUp 0.2s ease' }}>
+                      <input placeholder="Sem name…" value={addSemName} onChange={e => setAddSemName(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && handleAddSemester(branch.id)}
+                        style={{ ...inputStyle, fontSize: 11, padding: '6px 8px' }} autoFocus />
+                      <button onClick={() => handleAddSemester(branch.id)} style={{ ...iconBtnStyle, width: 24, height: 24, fontSize: 12, background: `${accent}22`, color: accent }}>✓</button>
+                    </div>
+                  )}
+
+                  {/* Semesters */}
+                  {branchSems.map((sem: any) => (
+                    <div
+                      key={sem.id}
+                      onClick={() => setSelectedSemId(sem.id)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        padding: '7px 10px 7px 24px', borderRadius: 8, marginBottom: 2, cursor: 'pointer',
+                        background: selectedSemId === sem.id ? `${accent}18` : 'transparent',
+                        borderLeft: selectedSemId === sem.id ? `3px solid ${accent}` : '3px solid transparent',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {editingItem?.type === 'semesters' && editingItem.id === sem.id ? (
+                        <input autoFocus value={editingItem.value} onChange={e => setEditingItem({ ...editingItem, value: e.target.value })}
+                          onKeyDown={e => { if (e.key === 'Enter') handleInlineEdit(); if (e.key === 'Escape') setEditingItem(null); }}
+                          onBlur={handleInlineEdit} onClick={e => e.stopPropagation()}
+                          style={{ ...inputStyle, fontSize: 11, padding: '3px 6px', flexGrow: 1 }} />
+                      ) : (
+                        <span style={{ fontSize: 12, fontWeight: 500, color: selectedSemId === sem.id ? '#e2e8f0' : '#94a3b8', flexGrow: 1 }}>
+                          {branch.name} {sem.name}
+                        </span>
+                      )}
+                      <button onClick={e => { e.stopPropagation(); setEditingItem({ type: 'semesters', id: sem.id, field: 'name', value: sem.name }); }} style={{ ...iconBtnStyle, width: 18, height: 18, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#475569', opacity: 0.6 }}>✏️</button>
+                      <button onClick={e => { e.stopPropagation(); handleDelete('semesters', sem.id); }} style={{ ...iconBtnStyle, width: 18, height: 18, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#475569', opacity: 0.6 }}>🗑️</button>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+            {branches.length === 0 && (
+              <p style={{ color: '#475569', fontSize: 12, textAlign: 'center', padding: '24px 0' }}>
+                Add your first branch above
+              </p>
+            )}
+          </div>
+
+          {/* Next button */}
+          <div style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+            <button onClick={() => navigate('/grid')} style={{ ...btnPrimary, width: '100%', padding: '12px 0', borderRadius: 12, background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+              Next →
             </button>
-          ))}
-        </nav>
-        
-        <button className="mt-auto px-4 py-3 bg-emerald-600 hover:bg-emerald-500 rounded-xl font-bold shadow-lg shadow-emerald-500/30 transition" onClick={() => navigate('/grid')}>
-          Go to Grid &rarr;
-        </button>
+          </div>
+        </div>
+
+        {/* ════════════ CENTER PANEL — Subjects + Assigned Faculty ════════════ */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          {selectedSemId && selectedBranch && selectedSem ? (
+            <>
+              {/* Semester header */}
+              <div style={{ padding: '20px 28px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#e2e8f0' }}>
+                  {selectedBranch.name} — {selectedSem.name}
+                </h2>
+                <p style={{ color: '#64748b', fontSize: 12, margin: '4px 0 0' }}>Manage subjects and assign faculty</p>
+              </div>
+
+              <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px', display: 'flex', gap: 20 }}>
+                {/* ── Subjects Section ── */}
+                <div style={{ flex: 1.2 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                      📚 Subjects
+                    </h3>
+                  </div>
+
+                  {/* Subject header row */}
+                  <div style={{ display: 'flex', padding: '8px 14px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <span style={{ flex: 1 }}>Subject</span>
+                    <span style={{ width: 80, textAlign: 'center' }}>Hours</span>
+                    <span style={{ width: 60 }}></span>
+                  </div>
+
+                  {/* Subject rows */}
+                  {semSubjects.map((sub: any, idx: number) => (
+                    <div key={sub.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.03)', animation: `fadeInUp 0.3s ease ${idx * 0.04}s both` }}>
+                      {editingItem?.type === 'subjects' && editingItem.id === sub.id ? (
+                        <>
+                          <input autoFocus value={editingItem.value} onChange={e => setEditingItem({ ...editingItem, value: e.target.value })}
+                            onKeyDown={e => { if (e.key === 'Enter') handleInlineEdit(); if (e.key === 'Escape') setEditingItem(null); }}
+                            onBlur={handleInlineEdit}
+                            style={{ ...inputStyle, fontSize: 13, padding: '6px 10px', flex: 1, marginRight: 8 }} />
+                        </>
+                      ) : (
+                        <>
+                          <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>{sub.name}</span>
+                          <span style={{ width: 80, textAlign: 'center', fontSize: 13, fontWeight: 600, color: ACCENT_COLORS[idx % ACCENT_COLORS.length] }}>{sub.weekly_hours}h</span>
+                          <div style={{ width: 60, display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+                            <button onClick={() => setEditingItem({ type: 'subjects', id: sub.id, field: 'name', value: sub.name })} style={{ ...iconBtnStyle, width: 24, height: 24, fontSize: 10 }}>✏️</button>
+                            <button onClick={() => handleDelete('subjects', sub.id)} style={{ ...iconBtnStyle, width: 24, height: 24, fontSize: 10 }}>🗑️</button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  ))}
+
+                  {/* Add subject row */}
+                  <div style={{ display: 'flex', gap: 8, padding: '12px 14px', alignItems: 'center' }}>
+                    <input placeholder="Subject name" value={addSubjectName} onChange={e => setAddSubjectName(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleAddSubject()}
+                      style={{ ...inputStyle, flex: 1, fontSize: 12 }} />
+                    <input placeholder="Hrs" value={addSubjectHours} onChange={e => setAddSubjectHours(e.target.value)} type="number" min="1"
+                      style={{ ...inputStyle, width: 60, fontSize: 12, textAlign: 'center' }} />
+                    <button onClick={handleAddSubject} style={{ ...btnPrimary, fontSize: 12, padding: '8px 14px' }}>+ Add</button>
+                  </div>
+
+                  {semSubjects.length === 0 && (
+                    <p style={{ color: '#475569', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No subjects yet — add one above</p>
+                  )}
+                </div>
+
+                {/* ── Assigned Faculty Section ── */}
+                <FacultyDropZone
+                  mappedFaculties={mappedFaculties}
+                  onUnmap={handleUnmapFaculty}
+                  semLabel={`${selectedBranch.name} ${selectedSem.name}`}
+                />
+              </div>
+            </>
+          ) : (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, animation: 'fadeIn 0.4s ease' }}>
+              <div style={{ width: 72, height: 72, borderRadius: 18, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>🎯</div>
+              <p style={{ color: '#475569', fontSize: 15, fontWeight: 600 }}>Select a semester</p>
+              <p style={{ color: '#334155', fontSize: 12 }}>Choose a branch & semester from the left panel</p>
+            </div>
+          )}
+        </div>
+
+        {/* ════════════ RIGHT PANEL — Faculty & Rooms ════════════ */}
+        <div style={{ width: 280, minWidth: 280, borderLeft: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          
+          {/* ----- TABS HEADER ----- */}
+          <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            <button 
+              onClick={() => setActiveTab('faculty')}
+              style={{ flex: 1, padding: '16px 0', background: activeTab === 'faculty' ? 'rgba(255,255,255,0.03)' : 'transparent', border: 'none', borderBottom: activeTab === 'faculty' ? '2px solid #6366f1' : '2px solid transparent', color: activeTab === 'faculty' ? '#e2e8f0' : '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'all 0.2s' }}>
+              👥 Faculty
+            </button>
+            <button 
+              onClick={() => setActiveTab('rooms')}
+              style={{ flex: 1, padding: '16px 0', background: activeTab === 'rooms' ? 'rgba(255,255,255,0.03)' : 'transparent', border: 'none', borderBottom: activeTab === 'rooms' ? '2px solid #10b981' : '2px solid transparent', color: activeTab === 'rooms' ? '#e2e8f0' : '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'all 0.2s' }}>
+              🏢 Rooms
+            </button>
+          </div>
+
+          {/* ----- FACULTY TAB ----- */}
+          {activeTab === 'faculty' && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              {/* Header */}
+              <div style={{ padding: '16px 16px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#e2e8f0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Faculty List</h3>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button onClick={() => setShowAllFaculty(!showAllFaculty)} style={{ ...iconBtnStyle, fontSize: 10, width: 'auto', padding: '4px 8px', height: 22, color: showAllFaculty ? '#818cf8' : '#64748b' }}>
+                    {showAllFaculty ? 'Hide' : 'All'}
+                  </button>
+                </div>
+              </div>
+
+              {/* Add Faculty */}
+              <div style={{ padding: '6px 16px', display: 'flex', gap: 6 }}>
+                <input placeholder="Faculty name…" value={addFacultyName} onChange={e => setAddFacultyName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddFaculty()}
+                  style={{ ...inputStyle, fontSize: 12, padding: '6px 10px' }} />
+                <button onClick={handleAddFaculty} style={{ ...iconBtnStyle, background: 'rgba(99,102,241,0.15)', color: '#818cf8', fontWeight: 700, fontSize: 16, height: 30, width: 30, flexShrink: 0 }}>+</button>
+              </div>
+
+              {/* Faculty cards */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
+                {(showAllFaculty ? faculties : faculties.filter((f: any) => !mappedFaculties.find((mf: any) => mf.id === f.id))).map((fac: any, idx: number) => (
+                  <DraggableFacultyCard
+                    key={fac.id}
+                    faculty={fac}
+                    idx={idx}
+                    editingItem={editingItem}
+                    onEdit={() => setEditingItem({ type: 'faculties', id: fac.id, field: 'name', value: fac.name })}
+                    onEditChange={(val: string) => editingItem && setEditingItem({ ...editingItem, value: val })}
+                    onEditSubmit={handleInlineEdit}
+                    onEditCancel={() => setEditingItem(null)}
+                    onDelete={() => handleDelete('faculties', fac.id)}
+                    isMapped={!!mappedFaculties.find((mf: any) => mf.id === fac.id)}
+                  />
+                ))}
+                {faculties.length === 0 && (
+                  <p style={{ color: '#475569', fontSize: 11, textAlign: 'center', padding: '16px 0' }}>Add your first faculty</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ----- ROOMS TAB ----- */}
+          {activeTab === 'rooms' && (
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              <div style={{ padding: '16px 16px 8px' }}>
+                <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#e2e8f0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Room List</h3>
+              </div>
+
+              {/* Add Room */}
+              <div style={{ padding: '6px 16px', display: 'flex', gap: 6 }}>
+                <input placeholder="Room #…" value={addRoomName} onChange={e => setAddRoomName(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddRoom()}
+                  style={{ ...inputStyle, fontSize: 12, padding: '6px 10px', flex: 1 }} />
+                <input placeholder="Cap" value={addRoomCapacity} onChange={e => setAddRoomCapacity(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleAddRoom()} type="number"
+                  style={{ ...inputStyle, fontSize: 12, padding: '6px 4px', width: 44, textAlign: 'center' }} title="Capacity" />
+                <button onClick={handleAddRoom} style={{ ...iconBtnStyle, background: 'rgba(99,102,241,0.15)', color: '#818cf8', fontWeight: 700, fontSize: 16, height: 30, width: 30, flexShrink: 0 }}>+</button>
+              </div>
+
+              {/* Room cards */}
+              <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
+                {rooms.map((rm: any, idx: number) => (
+                  <div key={rm.id} style={{
+                    padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, animation: `fadeInUp 0.3s ease ${idx * 0.04}s both`
+                  }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
+                      🚪
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+                      {editingItem?.type === 'rooms' && editingItem.id === rm.id ? (
+                        <input autoFocus value={editingItem.value} onChange={e => editingItem && setEditingItem({ ...editingItem, value: e.target.value })}
+                          onKeyDown={e => { if (e.key === 'Enter') handleInlineEdit(); if (e.key === 'Escape') setEditingItem(null); }}
+                          onBlur={handleInlineEdit}
+                          style={{ ...inputStyle, fontSize: 12, padding: '2px 6px' }} />
+                      ) : (
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rm.name}</span>
+                      )}
+                      <span style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>Cap: {rm.capacity}</span>
+                    </div>
+                    <button onClick={() => setEditingItem({ type: 'rooms', id: rm.id, field: 'name', value: rm.name })} style={{ ...iconBtnStyle, width: 20, height: 20, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#64748b' }}>✏️</button>
+                    <button onClick={() => handleDelete('rooms', rm.id)} style={{ ...iconBtnStyle, width: 20, height: 20, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#64748b' }}>🗑️</button>
+                  </div>
+                ))}
+                {rooms.length === 0 && (
+                  <p style={{ color: '#475569', fontSize: 11, textAlign: 'center', padding: '16px 0' }}>Add your first room</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Dustbin zone */}
+          <DustbinZone isActive={!!activeDragId} />
+        </div>
+
+        {/* Drag overlay */}
+        <DragOverlay>
+          {activeDragId ? (
+            <div style={{ padding: '10px 16px', borderRadius: 12, background: 'linear-gradient(135deg, #1e1b4b, #312e81)', border: '1px solid #6366f1', color: '#e2e8f0', fontSize: 13, fontWeight: 700, boxShadow: '0 12px 40px rgba(0,0,0,0.5)', cursor: 'grabbing' }}>
+              {faculties.find((f: any) => `fac-${f.id}` === activeDragId)?.name || 'Faculty'}
+            </div>
+          ) : null}
+        </DragOverlay>
+
+        {/* Custom Delete Confirmation Modal */}
+        {confirmDeleteObj && (
+          <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
+            <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', padding: 24, borderRadius: 16, width: 320, textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', animation: 'fadeInUp 0.2s ease' }}>
+              <div style={{ fontSize: 32, marginBottom: 12 }}>⚠️</div>
+              <h3 style={{ margin: '0 0 8px', fontSize: 16, color: '#f8fafc' }}>Confirm Deletion</h3>
+              <p style={{ margin: '0 0 24px', fontSize: 13, color: '#94a3b8' }}>Are you sure you want to delete this item?</p>
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button onClick={() => setConfirmDeleteObj(null)} style={{ flex: 1, padding: '10px 0', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, transition: 'background 0.2s' }}>Cancel</button>
+                <button onClick={confirmDeletion} style={{ flex: 1, padding: '10px 0', background: '#e11d48', border: 'none', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 600, transition: 'background 0.2s' }}>Delete</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
+    </DndContext>
+  );
+}
 
-      {/* Main Content Area */}
-      <div className="flex-1 p-8 overflow-y-auto">
-        
-        {activeTab === 'branches' && (
-          <SimpleCrud title="Branches" data={branches} onAdd={(name: string) => handleAdd('branches', { name })} />
+/* ═══════════════════════════════════════════════════════
+   DRAGGABLE FACULTY CARD
+   ═══════════════════════════════════════════════════════ */
+function DraggableFacultyCard({ faculty, idx, editingItem, onEdit, onEditChange, onEditSubmit, onEditCancel, onDelete, isMapped }: any) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `fac-${faculty.id}` });
+  const accent = ACCENT_COLORS[idx % ACCENT_COLORS.length];
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        padding: '12px 14px',
+        borderRadius: 12,
+        background: isMapped ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.03)',
+        border: `1px solid ${isMapped ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)'}`,
+        marginBottom: 6,
+        cursor: 'grab',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 10,
+        animation: `fadeInUp 0.3s ease ${idx * 0.04}s both`,
+      }}
+      {...attributes}
+      {...listeners}
+    >
+      <div style={{ width: 32, height: 32, borderRadius: 8, background: `${accent}18`, border: `1px solid ${accent}30`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, flexShrink: 0 }}>
+        👤
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {editingItem?.type === 'faculties' && editingItem.id === faculty.id ? (
+          <input autoFocus value={editingItem.value} onChange={e => onEditChange(e.target.value)}
+            onKeyDown={(e: React.KeyboardEvent) => { if (e.key === 'Enter') onEditSubmit(); if (e.key === 'Escape') onEditCancel(); }}
+            onBlur={onEditSubmit}
+            onClick={e => e.stopPropagation()}
+            onPointerDown={e => e.stopPropagation()}
+            style={{ ...inputStyle, fontSize: 12, padding: '4px 8px' }} />
+        ) : (
+          <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{faculty.name}</span>
         )}
-        
-        {activeTab === 'semesters' && (
-          <div className="max-w-3xl">
-            <h1 className="text-3xl font-bold mb-6 text-white border-b border-slate-700 pb-4">Semesters</h1>
-            <form onSubmit={(e: any) => {
-              e.preventDefault();
-              handleAdd('semesters', { name: e.target.name.value, branch_id: parseInt(e.target.branch_id.value) });
-              e.target.reset();
-            }} className="flex gap-4 mb-8">
-              <select name="branch_id" required className="bg-slate-800 border border-slate-600 rounded-lg p-3 focus:outline-none focus:border-blue-500">
-                <option value="">Select Branch</option>
-                {branches.map((b: any) => <option key={b.id} value={b.id}>{b.name}</option>)}
-              </select>
-              <input name="name" placeholder="Semester Name" required className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-3 focus:outline-none focus:border-blue-500"/>
-              <button type="submit" className="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-lg font-bold transition">Add</button>
-            </form>
-            <div className="grid grid-cols-2 gap-4">
-              {semesters.map((s: any) => (
-                <div key={s.id} className="bg-slate-800 p-4 border border-slate-700 rounded-xl">
-                  {s.name} <span className="text-sm text-slate-500 ml-2">(Branch ID: {s.branch_id})</span>
-                </div>
-              ))}
+        {isMapped && <span style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>Mapped</span>}
+      </div>
+      <button
+        onClick={e => { e.stopPropagation(); onEdit(); }}
+        onPointerDown={e => e.stopPropagation()}
+        style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#64748b' }}
+      >✏️</button>
+      <button
+        onClick={e => { e.stopPropagation(); onDelete(); }}
+        onPointerDown={e => e.stopPropagation()}
+        style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#64748b' }}
+      >🗑️</button>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
+   FACULTY DROP ZONE (center panel)
+   ═══════════════════════════════════════════════════════ */
+function FacultyDropZone({ mappedFaculties, onUnmap, semLabel }: { mappedFaculties: any[]; onUnmap: (id: number) => void; semLabel: string }) {
+  const { isOver, setNodeRef } = useDroppable({ id: 'faculty-drop-zone' });
+
+  return (
+    <div ref={setNodeRef} style={{
+      flex: 0.8,
+      ...glassCard,
+      borderColor: isOver ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.06)',
+      background: isOver ? 'rgba(99,102,241,0.06)' : 'rgba(255,255,255,0.03)',
+      padding: 16,
+      display: 'flex', flexDirection: 'column',
+      transition: 'all 0.2s',
+    }}>
+      <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        👥 {semLabel} Faculties
+      </h3>
+
+      <div style={{ flex: 1, overflowY: 'auto' }}>
+        {mappedFaculties.map((fac: any, idx: number) => (
+          <div key={fac.id} style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 12px', borderRadius: 10,
+            background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)',
+            marginBottom: 6, animation: `fadeInUp 0.3s ease ${idx * 0.05}s both`,
+          }}>
+            <div>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#d1fae5' }}>{fac.name}</span>
+              <p style={{ fontSize: 10, color: '#64748b', margin: '2px 0 0' }}>Remaining Workload</p>
             </div>
+            <button onClick={() => onUnmap(fac.id)} style={{ ...iconBtnStyle, width: 24, height: 24, fontSize: 10 }} title="Unmap faculty">✕</button>
+          </div>
+        ))}
+        {mappedFaculties.length === 0 && (
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 0', gap: 8 }}>
+            <span style={{ fontSize: 24 }}>↩️</span>
+            <p style={{ color: '#475569', fontSize: 12, textAlign: 'center', lineHeight: 1.5 }}>
+              Drag faculty from the<br />right panel to assign
+            </p>
           </div>
         )}
-
-        {activeTab === 'faculties' && (
-          <SimpleCrud title="Faculties" data={faculties} onAdd={(name: string) => handleAdd('faculties', { name })} />
-        )}
-
-        {activeTab === 'rooms' && (
-          <div className="max-w-3xl">
-            <h1 className="text-3xl font-bold mb-6 text-white border-b border-slate-700 pb-4">Rooms</h1>
-            <form onSubmit={(e: any) => {
-              e.preventDefault();
-              handleAdd('rooms', { name: e.target.name.value, capacity: parseInt(e.target.capacity.value) });
-              e.target.reset();
-            }} className="flex gap-4 mb-8">
-              <input name="name" placeholder="Room Name (e.g., L-101)" required className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-3 focus:outline-none focus:border-blue-500"/>
-              <input name="capacity" type="number" placeholder="Capacity" required className="w-32 bg-slate-800 border border-slate-600 rounded-lg p-3 focus:outline-none focus:border-blue-500"/>
-              <button type="submit" className="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-lg font-bold transition">Add</button>
-            </form>
-            <div className="grid grid-cols-3 gap-4">
-              {rooms.map((r: any) => (
-                <div key={r.id} className="bg-slate-800 p-4 border border-slate-700 rounded-xl flex justify-between">
-                  <span className="font-semibold">{r.name}</span>
-                  <span className="text-emerald-400 text-sm py-1 px-2 bg-emerald-400/10 rounded-full">{r.capacity} seats</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'mapping' && (
-          <MappingInterface branches={branches} semesters={semesters} allFaculties={faculties} />
-        )}
-
       </div>
     </div>
   );
 }
 
-// Reusable basic CRUD
-const SimpleCrud = ({ title, data, onAdd }: { title: string, data: any[], onAdd: any }) => (
-  <div className="max-w-2xl">
-    <h1 className="text-3xl font-bold mb-6 text-white border-b border-slate-700 pb-4">{title}</h1>
-    <form onSubmit={(e: any) => {
-      e.preventDefault();
-      onAdd(e.target.name.value);
-      e.target.reset();
-    }} className="flex gap-4 mb-8">
-      <input name="name" placeholder={`New ${title} name...`} required className="flex-1 bg-slate-800 border border-slate-600 rounded-lg p-3 focus:outline-none focus:border-blue-500 text-white placeholder-slate-500"/>
-      <button type="submit" className="bg-blue-600 hover:bg-blue-500 px-6 py-3 rounded-lg font-bold shadow-lg transition">Add</button>
-    </form>
-    <div className="flex flex-col gap-2">
-      {data.map((item: any) => (
-        <div key={item.id} className="bg-slate-800 p-4 border border-slate-700 rounded-lg text-lg font-medium tracking-wide">
-          {item.name}
-        </div>
-      ))}
-    </div>
-  </div>
-);
-
-// Drag-and-Drop Mapping UI
-const MappingInterface = ({ branches, semesters, allFaculties }: { branches: any[], semesters: any[], allFaculties: any[] }) => {
-  const [selectedBranch, setSelectedBranch] = useState('');
-  const [selectedSemester, setSelectedSemester] = useState('');
-  
-  const [mappedFaculties, setMappedFaculties] = useState<any[]>([]);
-
-  const filteredSemesters = semesters.filter((s:any) => String(s.branch_id) === String(selectedBranch));
-
-  useEffect(() => {
-    if (selectedSemester) {
-      axios.get(`${API_URL}/mappings/faculty/${selectedSemester}`).then(res => {
-        setMappedFaculties(res.data);
-      });
-    } else {
-      setMappedFaculties([]);
-    }
-  }, [selectedSemester]);
-
-  const availableFaculties = allFaculties.filter(
-    (f:any) => !mappedFaculties.find((mf) => mf.id === f.id)
-  );
-
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
-  );
-
-  const handleDragEnd = async (event: any) => {
-    const { active, over } = event;
-    
-    if (over && over.id === 'mapped-zone') {
-      // Find faculty in available
-      const faculty = availableFaculties.find((f:any) => 'available-'+f.id === active.id);
-      if (faculty && selectedSemester) {
-        // Map it via API
-        await axios.post(`${API_URL}/mappings/faculty`, {
-          semester_id: parseInt(selectedSemester),
-          faculty_id: faculty.id
-        });
-        setMappedFaculties([...mappedFaculties, faculty]);
-      }
-    }
-  };
+/* ═══════════════════════════════════════════════════════
+   DUSTBIN ZONE
+   ═══════════════════════════════════════════════════════ */
+function DustbinZone({ isActive }: { isActive: boolean }) {
+  const { isOver, setNodeRef } = useDroppable({ id: 'dustbin' });
 
   return (
-    <div className="h-full flex flex-col">
-      <h1 className="text-3xl font-bold mb-6 text-white border-b border-slate-700 pb-4">Mapping: Assign Faculties to Semesters</h1>
-      
-      <div className="flex gap-4 mb-8">
-        <select value={selectedBranch} onChange={(e) => {setSelectedBranch(e.target.value); setSelectedSemester('');}} 
-          className="bg-slate-800 border border-slate-600 rounded-lg p-3 focus:outline-none focus:border-blue-500 w-64">
-          <option value="">Select Branch...</option>
-          {branches.map((b:any) => <option key={b.id} value={b.id}>{b.name}</option>)}
-        </select>
-        
-        <select value={selectedSemester} onChange={(e) => setSelectedSemester(e.target.value)} disabled={!selectedBranch}
-          className="bg-slate-800 border border-slate-600 rounded-lg p-3 focus:outline-none focus:border-blue-500 w-64 disabled:opacity-50">
-          <option value="">Select Semester...</option>
-          {filteredSemesters.map((s:any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-        </select>
-      </div>
-
-      {selectedSemester ? (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <div className="flex gap-8 flex-1 min-h-0">
-            {/* Global Available View */}
-            <div className="flex-1 bg-slate-800 border border-slate-700 rounded-2xl p-6 flex flex-col">
-              <h2 className="text-xl font-bold mb-4 text-slate-300">Available Global Faculties</h2>
-              <div className="flex-1 overflow-y-auto pr-2">
-                <SortableContext items={availableFaculties.map((f:any) => 'available-'+f.id)} strategy={verticalListSortingStrategy}>
-                  {availableFaculties.map((f:any) => (
-                    <SortableFacultyItem key={`available-${f.id}`} id={`available-${f.id}`} name={f.name} onRemove={null} />
-                  ))}
-                </SortableContext>
-                {availableFaculties.length === 0 && <p className="text-slate-500 italic">All faculties assigned here.</p>}
-              </div>
-            </div>
-
-            {/* Dropzone Mapped View */}
-            <DroppableZone id="mapped-zone" mappedFaculties={mappedFaculties} />
-          </div>
-        </DndContext>
-      ) : (
-        <div className="flex-1 border-2 border-dashed border-slate-700 rounded-2xl flex items-center justify-center text-slate-500">
-          Select a Branch and Semester to begin mapping faculties.
-        </div>
-      )}
+    <div ref={setNodeRef} style={{
+      padding: '16px',
+      borderTop: '1px solid rgba(255,255,255,0.06)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+      background: isOver ? 'rgba(239,68,68,0.12)' : isActive ? 'rgba(239,68,68,0.04)' : 'transparent',
+      transition: 'all 0.2s',
+      opacity: isActive ? 1 : 0.3,
+    }}>
+      <span style={{ fontSize: 20 }}>🗑️</span>
+      <span style={{ fontSize: 12, fontWeight: 600, color: isOver ? '#f87171' : '#64748b' }}>
+        {isOver ? 'Release to delete' : 'Drop here to delete'}
+      </span>
     </div>
   );
-};
-
-// Custom Droppable Zone Component
-// @ts-ignore
-import { useDroppable } from '@dnd-kit/core';
-const DroppableZone = ({ id, mappedFaculties }: { id: string, mappedFaculties: any[] }) => {
-  const { isOver, setNodeRef } = useDroppable({ id });
-  
-  return (
-    <div ref={setNodeRef} className={`flex-1 border-2 rounded-2xl p-6 flex flex-col transition ${isOver ? 'bg-blue-900/20 border-blue-500' : 'bg-slate-800 border-slate-700'}`}>
-      <h2 className="text-xl font-bold mb-4 text-emerald-400">Allocated to Semester</h2>
-      <div className="flex-1 overflow-y-auto pr-2">
-        {mappedFaculties.map(f => (
-          <div key={`mapped-${f.id}`} className="bg-emerald-900/40 p-3 rounded-lg mb-2 border border-emerald-600 text-emerald-100 flex justify-between">
-            {f.name}
-            <span className="text-xs text-emerald-400/60 uppercase font-bold tracking-wider">Mapped</span>
-          </div>
-        ))}
-        {mappedFaculties.length === 0 && (
-          <div className="h-full flex items-center justify-center text-slate-500 italic text-center">
-            Drag faculties here from the left list.
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
+}

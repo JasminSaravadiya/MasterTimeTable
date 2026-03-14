@@ -7,8 +7,7 @@ export interface Config {
   start_time: string; // '08:00'
   end_time: string;   // '17:00'
   slot_duration_minutes: number;
-  break_start_time?: string;
-  break_end_time?: string;
+  breaks?: { id?: number; start_time: string; duration_minutes: number }[];
 }
 
 interface AppState {

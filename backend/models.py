@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, ForeignKey, Time, Boolean
+from sqlalchemy import Column, Integer, String, Float, ForeignKey, Time, Boolean, JSON
 from sqlalchemy.orm import relationship
 from database import Base
 
@@ -9,8 +9,7 @@ class TimetableConfig(Base):
     start_time = Column(Time, nullable=False)
     end_time = Column(Time, nullable=False)
     slot_duration_minutes = Column(Integer, nullable=False)
-    break_start_time = Column(Time, nullable=True)
-    break_end_time = Column(Time, nullable=True)
+    breaks = Column(JSON, default=list) # List of {"start_time": "HH:MM", "duration_minutes": int}
     allocations = relationship("Allocation", back_populates="config")
 
 class Branch(Base):

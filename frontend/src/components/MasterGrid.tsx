@@ -282,36 +282,39 @@ function AllocationModal({ cell, onClose, onSuccess }: { cell: any, onClose: any
             </select>
           </div>
 
-          <div>
-            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Faculty (Mapped to Semester)</label>
-            <select required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
-              value={formData.faculty_id} onChange={(e) => setFormData({...formData, faculty_id: e.target.value})}>
-              <option value="">Select mapped faculty...</option>
-              {faculties.map((f:any) => <option key={f.id} value={f.id}>{f.name}</option>)}
-            </select>
-          </div>
-
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Room</label>
+              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Faculty</label>
+              <select required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
+                value={formData.faculty_id} onChange={(e) => setFormData({...formData, faculty_id: e.target.value})}>
+                <option value="">Select mapped faculty...</option>
+                {faculties.map((f:any) => <option key={f.id} value={f.id}>{f.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Room number</label>
               <select required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
                 value={formData.room_id} onChange={(e) => setFormData({...formData, room_id: e.target.value})}>
                 <option value="">Room...</option>
-                {rooms.map((r:any) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                {rooms.map((r:any) => <option key={r.id} value={r.id}>{r.name} (Cap: {r.capacity})</option>)}
               </select>
             </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Duration (mins)</label>
               <input type="number" required className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
                 value={formData.duration_minutes} onChange={(e) => setFormData({...formData, duration_minutes: parseInt(e.target.value)})}/>
             </div>
+            <div>
+              <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Batch (Optional Split)</label>
+              <input type="text" placeholder="e.g. Batch A" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
+                value={formData.batch_name} onChange={(e) => setFormData({...formData, batch_name: e.target.value})}/>
+            </div>
           </div>
 
-          <div>
-            <label className="block text-slate-400 text-xs font-bold uppercase tracking-wider mb-2">Batch (Optional Split)</label>
-            <input type="text" placeholder="e.g. Batch A" className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white focus:border-blue-500 focus:outline-none"
-              value={formData.batch_name} onChange={(e) => setFormData({...formData, batch_name: e.target.value})}/>
-          </div>
+
           
           <div className="flex gap-4 mt-6">
             <button type="button" onClick={onClose} className="flex-1 py-3 bg-slate-700 hover:bg-slate-600 rounded-xl font-bold transition">Cancel</button>

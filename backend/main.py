@@ -1,8 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from typing import List
+from sqlalchemy import select, delete as sa_delete
+from typing import List, Optional
 from datetime import datetime, timedelta, date, time
 
 import models
@@ -28,10 +28,14 @@ async def startup():
 def read_root():
     return {"message": "Welcome to Master Timetable API"}
 
-# --- Config ---
+# ═══════════════════════════════════
+#  CONFIG
+# ═══════════════════════════════════
 @app.post("/api/config", response_model=schemas.ConfigOut)
 async def create_config(config: schemas.ConfigCreate, db: AsyncSession = Depends(get_db)):
-    db_config = models.TimetableConfig(**config.model_dump())
+    config_dict = config.model_dump()
+    config_dict['breaks'] = [b.model_dump(mode='json') for b in config.breaks]
+    db_config = models.TimetableConfig(**config_dict)
     db.add(db_config)
     await db.commit()
     await db.refresh(db_config)
@@ -42,7 +46,9 @@ async def read_configs(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(models.TimetableConfig))
     return result.scalars().all()
 
-# --- Branch ---
+# ═══════════════════════════════════
+#  BRANCH  (full CRUD)
+# ═══════════════════════════════════
 @app.post("/api/branches", response_model=schemas.BranchOut)
 async def create_branch(branch: schemas.BranchCreate, db: AsyncSession = Depends(get_db)):
     db_branch = models.Branch(**branch.model_dump())
@@ -56,7 +62,31 @@ async def read_branches(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(models.Branch))
     return result.scalars().all()
 
-# --- Semester ---
+@app.put("/api/branches/{branch_id}", response_model=schemas.BranchOut)
+async def update_branch(branch_id: int, data: schemas.BranchUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(models.Branch).filter(models.Branch.id == branch_id))
+    branch = result.scalars().first()
+    if not branch:
+        raise HTTPException(status_code=404, detail="Branch not found")
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(branch, k, v)
+    await db.commit()
+    await db.refresh(branch)
+    return branch
+
+@app.delete("/api/branches/{branch_id}")
+async def delete_branch(branch_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(models.Branch).filter(models.Branch.id == branch_id))
+    branch = result.scalars().first()
+    if not branch:
+        raise HTTPException(status_code=404, detail="Branch not found")
+    await db.delete(branch)
+    await db.commit()
+    return {"status": "deleted"}
+
+# ═══════════════════════════════════
+#  SEMESTER  (full CRUD)
+# ═══════════════════════════════════
 @app.post("/api/semesters", response_model=schemas.SemesterOut)
 async def create_semester(semester: schemas.SemesterCreate, db: AsyncSession = Depends(get_db)):
     db_semester = models.Semester(**semester.model_dump())
@@ -70,7 +100,31 @@ async def read_semesters(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(models.Semester))
     return result.scalars().all()
 
-# --- Subject ---
+@app.put("/api/semesters/{semester_id}", response_model=schemas.SemesterOut)
+async def update_semester(semester_id: int, data: schemas.SemesterUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(models.Semester).filter(models.Semester.id == semester_id))
+    semester = result.scalars().first()
+    if not semester:
+        raise HTTPException(status_code=404, detail="Semester not found")
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(semester, k, v)
+    await db.commit()
+    await db.refresh(semester)
+    return semester
+
+@app.delete("/api/semesters/{semester_id}")
+async def delete_semester(semester_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(models.Semester).filter(models.Semester.id == semester_id))
+    semester = result.scalars().first()
+    if not semester:
+        raise HTTPException(status_code=404, detail="Semester not found")
+    await db.delete(semester)
+    await db.commit()
+    return {"status": "deleted"}
+
+# ═══════════════════════════════════
+#  SUBJECT  (full CRUD + filter)
+# ═══════════════════════════════════
 @app.post("/api/subjects", response_model=schemas.SubjectOut)
 async def create_subject(subject: schemas.SubjectCreate, db: AsyncSession = Depends(get_db)):
     db_subject = models.Subject(**subject.model_dump())
@@ -80,11 +134,38 @@ async def create_subject(subject: schemas.SubjectCreate, db: AsyncSession = Depe
     return db_subject
 
 @app.get("/api/subjects", response_model=List[schemas.SubjectOut])
-async def read_subjects(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(models.Subject))
+async def read_subjects(semester_id: Optional[int] = Query(None), db: AsyncSession = Depends(get_db)):
+    query = select(models.Subject)
+    if semester_id is not None:
+        query = query.filter(models.Subject.semester_id == semester_id)
+    result = await db.execute(query)
     return result.scalars().all()
 
-# --- Faculty ---
+@app.put("/api/subjects/{subject_id}", response_model=schemas.SubjectOut)
+async def update_subject(subject_id: int, data: schemas.SubjectUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(models.Subject).filter(models.Subject.id == subject_id))
+    subject = result.scalars().first()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(subject, k, v)
+    await db.commit()
+    await db.refresh(subject)
+    return subject
+
+@app.delete("/api/subjects/{subject_id}")
+async def delete_subject(subject_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(models.Subject).filter(models.Subject.id == subject_id))
+    subject = result.scalars().first()
+    if not subject:
+        raise HTTPException(status_code=404, detail="Subject not found")
+    await db.delete(subject)
+    await db.commit()
+    return {"status": "deleted"}
+
+# ═══════════════════════════════════
+#  FACULTY  (full CRUD)
+# ═══════════════════════════════════
 @app.post("/api/faculties", response_model=schemas.FacultyOut)
 async def create_faculty(faculty: schemas.FacultyCreate, db: AsyncSession = Depends(get_db)):
     db_faculty = models.Faculty(**faculty.model_dump())
@@ -98,7 +179,31 @@ async def read_faculties(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(models.Faculty))
     return result.scalars().all()
 
-# --- Room ---
+@app.put("/api/faculties/{faculty_id}", response_model=schemas.FacultyOut)
+async def update_faculty(faculty_id: int, data: schemas.FacultyUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(models.Faculty).filter(models.Faculty.id == faculty_id))
+    faculty = result.scalars().first()
+    if not faculty:
+        raise HTTPException(status_code=404, detail="Faculty not found")
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(faculty, k, v)
+    await db.commit()
+    await db.refresh(faculty)
+    return faculty
+
+@app.delete("/api/faculties/{faculty_id}")
+async def delete_faculty(faculty_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(models.Faculty).filter(models.Faculty.id == faculty_id))
+    faculty = result.scalars().first()
+    if not faculty:
+        raise HTTPException(status_code=404, detail="Faculty not found")
+    await db.delete(faculty)
+    await db.commit()
+    return {"status": "deleted"}
+
+# ═══════════════════════════════════
+#  ROOM  (full CRUD)
+# ═══════════════════════════════════
 @app.post("/api/rooms", response_model=schemas.RoomOut)
 async def create_room(room: schemas.RoomCreate, db: AsyncSession = Depends(get_db)):
     db_room = models.Room(**room.model_dump())
@@ -112,7 +217,31 @@ async def read_rooms(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(models.Room))
     return result.scalars().all()
 
-# --- Mappings (Screen 2) ---
+@app.put("/api/rooms/{room_id}", response_model=schemas.RoomOut)
+async def update_room(room_id: int, data: schemas.RoomUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(models.Room).filter(models.Room.id == room_id))
+    room = result.scalars().first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    for k, v in data.model_dump(exclude_unset=True).items():
+        setattr(room, k, v)
+    await db.commit()
+    await db.refresh(room)
+    return room
+
+@app.delete("/api/rooms/{room_id}")
+async def delete_room(room_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(models.Room).filter(models.Room.id == room_id))
+    room = result.scalars().first()
+    if not room:
+        raise HTTPException(status_code=404, detail="Room not found")
+    await db.delete(room)
+    await db.commit()
+    return {"status": "deleted"}
+
+# ═══════════════════════════════════
+#  MAPPINGS  (faculty & room ↔ semester)
+# ═══════════════════════════════════
 from pydantic import BaseModel
 
 class FacultyMapping(BaseModel):
@@ -121,6 +250,15 @@ class FacultyMapping(BaseModel):
 
 @app.post("/api/mappings/faculty")
 async def map_faculty(mapping: FacultyMapping, db: AsyncSession = Depends(get_db)):
+    # Prevent duplicate mappings
+    existing = await db.execute(
+        select(models.SemesterFacultyMap).filter(
+            models.SemesterFacultyMap.semester_id == mapping.semester_id,
+            models.SemesterFacultyMap.faculty_id == mapping.faculty_id,
+        )
+    )
+    if existing.scalars().first():
+        return {"status": "already_mapped"}
     db_map = models.SemesterFacultyMap(semester_id=mapping.semester_id, faculty_id=mapping.faculty_id)
     db.add(db_map)
     await db.commit()
@@ -132,6 +270,21 @@ async def get_mapped_faculties(semester_id: int, db: AsyncSession = Depends(get_
         select(models.Faculty).join(models.SemesterFacultyMap).filter(models.SemesterFacultyMap.semester_id == semester_id)
     )
     return result.scalars().all()
+
+@app.delete("/api/mappings/faculty/{semester_id}/{faculty_id}")
+async def unmap_faculty(semester_id: int, faculty_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(models.SemesterFacultyMap).filter(
+            models.SemesterFacultyMap.semester_id == semester_id,
+            models.SemesterFacultyMap.faculty_id == faculty_id,
+        )
+    )
+    mapping = result.scalars().first()
+    if not mapping:
+        raise HTTPException(status_code=404, detail="Mapping not found")
+    await db.delete(mapping)
+    await db.commit()
+    return {"status": "deleted"}
 
 class RoomMapping(BaseModel):
     semester_id: int
@@ -151,7 +304,9 @@ async def get_mapped_rooms(semester_id: int, db: AsyncSession = Depends(get_db))
     )
     return result.scalars().all()
 
-# --- Allocations & Collision Logic (Screen 3) ---
+# ═══════════════════════════════════
+#  ALLOCATIONS & COLLISION LOGIC
+# ═══════════════════════════════════
 def add_minutes(t: time, mins: int) -> time:
     dt = datetime.combine(date.today(), t) + timedelta(minutes=mins)
     return dt.time()
@@ -163,23 +318,19 @@ def check_overlap(start1: time, end1: time, start2: time, end2: time) -> bool:
 async def create_allocation(allocation: schemas.AllocationCreate, db: AsyncSession = Depends(get_db)):
     new_start = allocation.start_time
     new_end = add_minutes(new_start, allocation.duration_minutes)
-    
-    # Fetch all allocations for the same day
+
     result = await db.execute(select(models.Allocation).filter(models.Allocation.day_of_week == allocation.day_of_week))
     existing_allocations = result.scalars().all()
-    
+
     for ext in existing_allocations:
         ext_start = ext.start_time
         ext_end = add_minutes(ext_start, ext.duration_minutes)
-        
+
         if check_overlap(new_start, new_end, ext_start, ext_end):
-            # Same faculty?
             if ext.faculty_id == allocation.faculty_id:
                 raise HTTPException(status_code=400, detail="Faculty collision detected!")
-            # Same room?
             if ext.room_id == allocation.room_id:
                 raise HTTPException(status_code=400, detail="Room collision detected!")
-            # Same semester (batch)? Wait, different batches can share a sem but not same batch
             if ext.semester_id == allocation.semester_id:
                 if ext.batch_name == allocation.batch_name or not allocation.batch_name or not ext.batch_name:
                     raise HTTPException(status_code=400, detail="Semester/Batch collision detected!")
@@ -195,12 +346,10 @@ async def read_allocations(db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(models.Allocation))
     return result.scalars().all()
 
-# --- Export Endpoint (Screen 4) ---
-# For now, it returns all allocations with joined data
+# ═══════════════════════════════════
+#  EXPORT
+# ═══════════════════════════════════
 @app.get("/api/export")
 async def get_export_data(db: AsyncSession = Depends(get_db)):
-    # Simple nested fetch or flat fetch
     allocations = (await db.execute(select(models.Allocation))).scalars().all()
-    # Pydantic will serialize relationships if set up, or we can just return IDs for now
-    # Since we need names, we would fetch related or do a join request.
     return allocations

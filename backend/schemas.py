@@ -2,13 +2,16 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import time
 
+class BreakSlot(BaseModel):
+    start_time: time
+    duration_minutes: int
+
 class ConfigBase(BaseModel):
     name: str = "Master Configuration"
     start_time: time
     end_time: time
     slot_duration_minutes: int
-    break_start_time: Optional[time] = None
-    break_end_time: Optional[time] = None
+    breaks: List[BreakSlot] = []
 
 class ConfigCreate(ConfigBase):
     pass
@@ -18,17 +21,22 @@ class ConfigOut(ConfigBase):
     class Config:
         from_attributes = True
 
+# --- Branch ---
 class BranchBase(BaseModel):
     name: str
 
 class BranchCreate(BranchBase):
     pass
 
+class BranchUpdate(BaseModel):
+    name: Optional[str] = None
+
 class BranchOut(BranchBase):
     id: int
     class Config:
         from_attributes = True
 
+# --- Semester ---
 class SemesterBase(BaseModel):
     name: str
     branch_id: int
@@ -36,11 +44,16 @@ class SemesterBase(BaseModel):
 class SemesterCreate(SemesterBase):
     pass
 
+class SemesterUpdate(BaseModel):
+    name: Optional[str] = None
+    branch_id: Optional[int] = None
+
 class SemesterOut(SemesterBase):
     id: int
     class Config:
         from_attributes = True
 
+# --- Subject ---
 class SubjectBase(BaseModel):
     name: str
     semester_id: int
@@ -49,22 +62,32 @@ class SubjectBase(BaseModel):
 class SubjectCreate(SubjectBase):
     pass
 
+class SubjectUpdate(BaseModel):
+    name: Optional[str] = None
+    semester_id: Optional[int] = None
+    weekly_hours: Optional[float] = None
+
 class SubjectOut(SubjectBase):
     id: int
     class Config:
         from_attributes = True
 
+# --- Faculty ---
 class FacultyBase(BaseModel):
     name: str
 
 class FacultyCreate(FacultyBase):
     pass
 
+class FacultyUpdate(BaseModel):
+    name: Optional[str] = None
+
 class FacultyOut(FacultyBase):
     id: int
     class Config:
         from_attributes = True
 
+# --- Room ---
 class RoomBase(BaseModel):
     name: str
     capacity: int
@@ -72,11 +95,16 @@ class RoomBase(BaseModel):
 class RoomCreate(RoomBase):
     pass
 
+class RoomUpdate(BaseModel):
+    name: Optional[str] = None
+    capacity: Optional[int] = None
+
 class RoomOut(RoomBase):
     id: int
     class Config:
         from_attributes = True
 
+# --- Allocation ---
 class AllocationBase(BaseModel):
     config_id: Optional[int] = None
     semester_id: int

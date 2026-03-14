@@ -26,24 +26,58 @@ function generateSlots(
   start: string,
   end: string,
   duration: number,
-  breakStart?: string,
-  breakEnd?: string
+  breaks: { start_time: string, duration_minutes: number }[]
 ): { start: string; end: string; isBreak: boolean }[] {
   const slots: { start: string; end: string; isBreak: boolean }[] = [];
   let cursor = start;
+  
   const toMin = (t: string) => {
     const [h, m] = t.split(':').map(Number);
     return h * 60 + m;
   };
-  while (toMin(cursor) + duration <= toMin(end)) {
-    const slotEnd = addMinutes(cursor, duration);
-    const isBreak =
-      !!breakStart &&
-      !!breakEnd &&
-      toMin(cursor) >= toMin(breakStart) &&
-      toMin(cursor) < toMin(breakEnd);
-    slots.push({ start: cursor, end: slotEnd, isBreak });
-    cursor = slotEnd;
+
+  const endMin = toMin(end);
+
+  // Sort breaks to apply them chronologically
+  const sortedBreaks = [...breaks].sort((a, b) => toMin(a.start_time) - toMin(b.start_time));
+
+  while (toMin(cursor) + duration <= endMin) {
+    let nextSlotEnd = addMinutes(cursor, duration);
+    let breakHit = false;
+
+    // Check if the current slot overlaps or lands squarely inside any break
+    for (const brk of sortedBreaks) {
+      const brkStartMin = toMin(brk.start_time);
+      const brkEndMin = brkStartMin + brk.duration_minutes;
+      const cursorMin = toMin(cursor);
+      
+      // If the upcoming class crosses into the break or starts identically
+      if (cursorMin < brkStartMin && toMin(nextSlotEnd) > brkStartMin) {
+        // We truncate the class (or rather, we don't schedule it because it would cross a break)
+        // For simplicity: shift the cursor to the START of the break, so the break is processed next
+        cursor = brk.start_time;
+        breakHit = true;
+        break;
+      } else if (cursorMin >= brkStartMin && cursorMin < brkEndMin) {
+        // We hit a break!
+        const brkEndStr = addMinutes(brk.start_time, brk.duration_minutes);
+        slots.push({ start: brk.start_time, end: brkEndStr, isBreak: true });
+        // Shift cursor past the break
+        cursor = brkEndStr;
+        breakHit = true;
+        break;
+      }
+    }
+
+    if (!breakHit) {
+      // It's a normal class slot
+      if (toMin(nextSlotEnd) <= endMin) {
+        slots.push({ start: cursor, end: nextSlotEnd, isBreak: false });
+        cursor = nextSlotEnd;
+      } else {
+        break;
+      }
+    }
   }
   return slots;
 }
@@ -71,8 +105,7 @@ export default function Dashboard() {
     start_time: '08:00',
     end_time: '17:00',
     slot_duration_minutes: 60,
-    break_start_time: '12:00',
-    break_end_time: '13:00',
+    breaks: [{ id: Date.now(), start_time: '12:00', duration_minutes: 60 }],
   });
 
   /* Live slot preview */
@@ -82,8 +115,7 @@ export default function Dashboard() {
         formData.start_time,
         formData.end_time,
         formData.slot_duration_minutes,
-        formData.break_start_time,
-        formData.break_end_time
+        formData.breaks
       ),
     [formData]
   );
@@ -643,32 +675,68 @@ export default function Dashboard() {
                     border: '1px solid rgba(245,158,11,0.12)',
                   }}
                 >
-                  <label
-                    style={{
-                      ...labelStyle,
-                      color: '#fbbf24',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 6,
-                    }}
-                  >
-                    ☕ Break Time{' '}
-                    <span style={{ color: '#64748b', fontWeight: 400, fontSize: 11 }}>(optional)</span>
-                  </label>
-                  <div style={{ display: 'flex', gap: 16, marginTop: 8 }}>
-                    <input
-                      type="time"
-                      value={formData.break_start_time}
-                      onChange={(e) => setFormData({ ...formData, break_start_time: e.target.value })}
-                      style={{ ...inputStyle, background: 'rgba(0,0,0,0.3)' }}
-                    />
-                    <span style={{ color: '#64748b', alignSelf: 'center', fontSize: 13, fontWeight: 600 }}>→</span>
-                    <input
-                      type="time"
-                      value={formData.break_end_time}
-                      onChange={(e) => setFormData({ ...formData, break_end_time: e.target.value })}
-                      style={{ ...inputStyle, background: 'rgba(0,0,0,0.3)' }}
-                    />
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label style={{ ...labelStyle, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      ☕ Break Times <span style={{ color: '#64748b', fontWeight: 400, fontSize: 11 }}>(optional)</span>
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setFormData({ ...formData, breaks: [...formData.breaks, { id: Date.now(), start_time: '14:00', duration_minutes: 15 }] })}
+                      style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      + Add Break
+                    </button>
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 12 }}>
+                    {formData.breaks.map((brk, index) => (
+                      <div key={brk.id} style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                        <div style={{ flex: 1, position: 'relative' }}>
+                          <input
+                            type="time"
+                            value={brk.start_time}
+                            onChange={(e) => {
+                              const newBreaks = [...formData.breaks];
+                              newBreaks[index].start_time = e.target.value;
+                              setFormData({ ...formData, breaks: newBreaks });
+                            }}
+                            style={{ ...inputStyle, background: 'rgba(0,0,0,0.3)' }}
+                          />
+                        </div>
+                        <span style={{ color: '#64748b', fontSize: 13, fontWeight: 600 }}>for</span>
+                        <div style={{ position: 'relative', width: 100 }}>
+                          <select
+                            value={brk.duration_minutes}
+                            onChange={(e) => {
+                              const newBreaks = [...formData.breaks];
+                              newBreaks[index].duration_minutes = parseInt(e.target.value);
+                              setFormData({ ...formData, breaks: newBreaks });
+                            }}
+                            style={{ ...inputStyle, background: 'rgba(0,0,0,0.3)', paddingRight: 10, appearance: 'none', MozAppearance: 'none', WebkitAppearance: 'none' }}
+                          >
+                            <option value={15}>15 mins</option>
+                            <option value={30}>30 mins</option>
+                            <option value={45}>45 mins</option>
+                            <option value={60}>60 mins</option>
+                            <option value={90}>90 mins</option>
+                            <option value={120}>120 mins</option>
+                          </select>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const newBreaks = formData.breaks.filter(b => b.id !== brk.id);
+                            setFormData({ ...formData, breaks: newBreaks });
+                          }}
+                          style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239,68,68,0.1)', color: '#ef4444', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    {formData.breaks.length === 0 && (
+                      <div style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic', padding: '10px 0' }}>No breaks configured</div>
+                    )}
                   </div>
                 </div>
 
