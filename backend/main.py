@@ -477,3 +477,306 @@ async def read_allocations(db: AsyncSession = Depends(get_db)):
 async def get_export_data(db: AsyncSession = Depends(get_db)):
     allocations = (await db.execute(select(models.Allocation))).scalars().all()
     return allocations
+
+# ─── openpyxl-based GTU-format Excel export ───
+from fastapi.responses import StreamingResponse
+from io import BytesIO
+import openpyxl
+from openpyxl.styles import Font, Alignment, Border, Side, PatternFill
+from openpyxl.utils import get_column_letter
+
+DAYS_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+def _time_to_minutes(t) -> int:
+    """Convert a time object or HH:MM:SS string to minutes since midnight."""
+    if isinstance(t, str):
+        parts = t.split(':')
+        return int(parts[0]) * 60 + int(parts[1])
+    return t.hour * 60 + t.minute
+
+def _mins_to_hhmm(mins: int) -> str:
+    return f"{mins // 60:02d}:{mins % 60:02d}"
+
+def _generate_timeslots(config) -> list:
+    """Generate timeslots with breaks, matching the frontend logic."""
+    slots = []
+    breaks_raw = config.breaks or []
+    start_mins = _time_to_minutes(config.start_time)
+    end_mins = _time_to_minutes(config.end_time)
+    slot_dur = config.slot_duration_minutes
+    cursor = start_mins
+
+    # Parse break start times
+    break_map = {}
+    for b in breaks_raw:
+        bstart = b.get('start_time', '') if isinstance(b, dict) else ''
+        bdur = b.get('duration_minutes', 0) if isinstance(b, dict) else 0
+        if bstart:
+            break_map[_time_to_minutes(bstart)] = bdur
+
+    while cursor < end_mins:
+        if cursor in break_map:
+            bdur = break_map[cursor]
+            slots.append({'type': 'break', 'start_mins': cursor, 'end_mins': cursor + bdur, 'display': 'RECESS'})
+            cursor += bdur
+        else:
+            slot_end = cursor + slot_dur
+            slots.append({
+                'type': 'slot',
+                'start_mins': cursor,
+                'end_mins': slot_end,
+                'display': f"{_mins_to_hhmm(cursor)}-{_mins_to_hhmm(slot_end)}"
+            })
+            cursor = slot_end
+    return slots
+
+def _build_sheet(ws, title: str, allocs, timeslots, all_subjects, all_faculties, all_rooms, slot_duration: int):
+    """Build a single GTU-format sheet."""
+    thin = Side(style='thin')
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    header_font = Font(bold=True, size=12)
+    title_font = Font(bold=True, size=14)
+    center = Alignment(horizontal='center', vertical='center', wrap_text=True)
+    left_align = Alignment(horizontal='left', vertical='center', wrap_text=True)
+
+    total_cols = 2 + len(DAYS_ORDER)  # Lec No + Time + 6 days
+    last_col_letter = get_column_letter(total_cols)
+
+    # Row 1: University
+    ws.merge_cells(f'A1:{last_col_letter}1')
+    ws['A1'] = 'Gujarat Technological University'
+    ws['A1'].font = Font(bold=True, size=16)
+    ws['A1'].alignment = center
+
+    # Row 2: School
+    ws.merge_cells(f'A2:{last_col_letter}2')
+    ws['A2'] = 'SCHOOL OF ENGINEERING AND TECHNOLOGY'
+    ws['A2'].font = Font(bold=True, size=13)
+    ws['A2'].alignment = center
+
+    # Row 3: Title
+    ws.merge_cells(f'A3:{last_col_letter}3')
+    ws['A3'] = f'Class Timetable: {title}'
+    ws['A3'].font = title_font
+    ws['A3'].alignment = center
+
+    # Row 4: Coordinator
+    ws.merge_cells(f'A4:{last_col_letter}4')
+    ws['A4'] = 'Class Coordinator: __________'
+    ws['A4'].font = Font(size=11)
+    ws['A4'].alignment = left_align
+
+    # Row 5: Header
+    header_row = 5
+    headers = ['Lec No', 'Time'] + DAYS_ORDER
+    header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+    header_font_white = Font(bold=True, size=11, color='FFFFFF')
+    for ci, h in enumerate(headers, 1):
+        cell = ws.cell(row=header_row, column=ci, value=h)
+        cell.font = header_font_white
+        cell.fill = header_fill
+        cell.alignment = center
+        cell.border = border
+
+    # Build lookup: (day, start_mins) -> list of allocations
+    alloc_map: dict = {}
+    for a in allocs:
+        a_start = _time_to_minutes(a.start_time)
+        key = (a.day_of_week, a_start)
+        alloc_map.setdefault(key, []).append(a)
+
+    # Subject/faculty/room name lookups
+    sub_map = {s.id: s.name for s in all_subjects}
+    fac_map = {f.id: f.name for f in all_faculties}
+    rm_map = {r.id: r.name for r in all_rooms}
+
+    # Track which rows to merge for multi-slot labs (per day column)
+    # We'll first write all data, then merge afterwards
+    data_start_row = header_row + 1
+    current_row = data_start_row
+    lec_no = 0
+
+    # Track merge ranges for labs: list of (start_row, end_row, col)
+    merge_ranges = []
+
+    # Map from (slot_index) to row number for merge tracking
+    slot_row_map = {}
+
+    for si, slot in enumerate(timeslots):
+        row = current_row
+        slot_row_map[si] = row
+
+        if slot['type'] == 'break':
+            # Break row
+            ws.cell(row=row, column=1, value='Break').font = Font(bold=True, size=11)
+            ws.cell(row=row, column=1).alignment = center
+            ws.cell(row=row, column=1).border = border
+
+            ws.cell(row=row, column=2, value=slot['display']).alignment = center
+            ws.cell(row=row, column=2).border = border
+            ws.cell(row=row, column=2).font = Font(bold=True, size=11)
+
+            # Merge day columns with RECESS
+            ws.merge_cells(start_row=row, start_column=3, end_row=row, end_column=total_cols)
+            ws.cell(row=row, column=3, value='RECESS')
+            ws.cell(row=row, column=3).alignment = center
+            ws.cell(row=row, column=3).font = Font(bold=True, size=12, color='FF0000')
+            ws.cell(row=row, column=3).fill = PatternFill(start_color='FFF2CC', end_color='FFF2CC', fill_type='solid')
+            ws.cell(row=row, column=3).border = border
+        else:
+            lec_no += 1
+            ws.cell(row=row, column=1, value=lec_no).alignment = center
+            ws.cell(row=row, column=1).border = border
+            ws.cell(row=row, column=1).font = Font(bold=True, size=11)
+
+            ws.cell(row=row, column=2, value=slot['display']).alignment = center
+            ws.cell(row=row, column=2).border = border
+            ws.cell(row=row, column=2).font = Font(size=10)
+
+            for di, day in enumerate(DAYS_ORDER):
+                col = 3 + di
+                cell_allocs = alloc_map.get((day, slot['start_mins']), [])
+
+                if cell_allocs:
+                    lines = []
+                    for a in cell_allocs:
+                        sub_name = sub_map.get(a.subject_id, '?')
+                        fac_name = fac_map.get(a.faculty_id, '?')
+                        rm_name = rm_map.get(a.room_id, '?')
+                        batches = a.batches or []
+
+                        if batches:
+                            for batch in batches:
+                                lines.append(f"{batch}\n{sub_name}({fac_name})({rm_name})")
+                        else:
+                            lines.append(f"{sub_name}({fac_name})({rm_name})")
+
+                        # Check if this is a multi-slot lab
+                        if a.duration_minutes > slot_duration:
+                            spans = a.duration_minutes // slot_duration
+                            end_slot_idx = si + spans - 1
+                            if end_slot_idx < len(timeslots):
+                                end_row = slot_row_map.get(si, row) + spans - 1
+                                merge_ranges.append((row, end_row, col))
+
+                    cell_value = '\n'.join(lines)
+                    cell = ws.cell(row=row, column=col, value=cell_value)
+                    cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+                    cell.border = border
+                    cell.font = Font(size=9)
+                else:
+                    cell = ws.cell(row=row, column=col, value='')
+                    cell.border = border
+
+        current_row += 1
+
+    # Apply lab merges
+    for start_r, end_r, col in merge_ranges:
+        if end_r > start_r and end_r < current_row:
+            try:
+                ws.merge_cells(start_row=start_r, start_column=col, end_row=end_r, end_column=col)
+            except Exception:
+                pass  # Skip if already merged or overlapping
+
+    # Set column widths
+    ws.column_dimensions['A'].width = 8
+    ws.column_dimensions['B'].width = 14
+    for ci in range(3, total_cols + 1):
+        ws.column_dimensions[get_column_letter(ci)].width = 22
+
+    # Set row heights
+    for r in range(data_start_row, current_row):
+        ws.row_dimensions[r].height = 45
+
+
+@app.get("/api/export_excel")
+async def export_excel(
+    config_id: int = Query(...),
+    export_type: str = Query('all'),   # all, semester, faculty, room
+    item_id: Optional[int] = Query(None),
+    db: AsyncSession = Depends(get_db)
+):
+    # Fetch config
+    config_result = await db.execute(select(models.TimetableConfig).filter(models.TimetableConfig.id == config_id))
+    config = config_result.scalars().first()
+    if not config:
+        raise HTTPException(status_code=404, detail="Config not found")
+
+    # Fetch all reference data for this config
+    all_branches = (await db.execute(select(models.Branch).filter(models.Branch.config_id == config_id))).scalars().all()
+    all_semesters = (await db.execute(select(models.Semester).filter(models.Semester.config_id == config_id))).scalars().all()
+    all_subjects = (await db.execute(select(models.Subject).filter(models.Subject.config_id == config_id))).scalars().all()
+    all_faculties = (await db.execute(select(models.Faculty).filter(models.Faculty.config_id == config_id))).scalars().all()
+    all_rooms = (await db.execute(select(models.Room).filter(models.Room.config_id == config_id))).scalars().all()
+    all_allocations = (await db.execute(select(models.Allocation).filter(models.Allocation.config_id == config_id))).scalars().all()
+
+    timeslots = _generate_timeslots(config)
+    branch_map = {b.id: b.name for b in all_branches}
+    sem_map = {s.id: s for s in all_semesters}
+
+    wb = openpyxl.Workbook()
+    # Remove default sheet
+    wb.remove(wb.active)
+
+    filename = f"{config.name or 'Timetable'}.xlsx"
+
+    if export_type == 'semester' and item_id:
+        sem = sem_map.get(item_id)
+        if sem:
+            branch_name = branch_map.get(sem.branch_id, '')
+            sheet_title = f"{branch_name} {sem.name}".strip()
+            ws = wb.create_sheet(title=sheet_title[:31])
+            allocs = [a for a in all_allocations if a.semester_id == item_id]
+            _build_sheet(ws, sheet_title, allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
+            filename = f"{branch_name}_{sem.name}_Timetable.xlsx".replace(' ', '_')
+
+    elif export_type == 'faculty' and item_id:
+        fac = next((f for f in all_faculties if f.id == item_id), None)
+        if fac:
+            ws = wb.create_sheet(title=f"Faculty_{fac.name}"[:31])
+            allocs = [a for a in all_allocations if a.faculty_id == item_id]
+            _build_sheet(ws, f"Faculty: {fac.name}", allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
+            filename = f"Faculty_{fac.name}_Timetable.xlsx".replace(' ', '_')
+
+    elif export_type == 'room' and item_id:
+        rm = next((r for r in all_rooms if r.id == item_id), None)
+        if rm:
+            ws = wb.create_sheet(title=f"Room_{rm.name}"[:31])
+            allocs = [a for a in all_allocations if a.room_id == item_id]
+            _build_sheet(ws, f"Room: {rm.name}", allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
+            filename = f"Room_{rm.name}_Timetable.xlsx".replace(' ', '_')
+
+    else:
+        # Export All — one sheet per semester + faculty sheets
+        for sem in all_semesters:
+            branch_name = branch_map.get(sem.branch_id, '')
+            sheet_title = f"{branch_name} {sem.name}".strip()[:31]
+            ws = wb.create_sheet(title=sheet_title)
+            allocs = [a for a in all_allocations if a.semester_id == sem.id]
+            _build_sheet(ws, f"{branch_name} ({sem.name})", allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
+
+        for fac in all_faculties:
+            fac_allocs = [a for a in all_allocations if a.faculty_id == fac.id]
+            if fac_allocs:
+                ws = wb.create_sheet(title=f"Fac_{fac.name}"[:31])
+                _build_sheet(ws, f"Faculty: {fac.name}", fac_allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
+
+        filename = f"{config.name or 'Timetable'}_Complete.xlsx".replace(' ', '_')
+
+    # Fallback if no sheets were created
+    if len(wb.sheetnames) == 0:
+        ws = wb.create_sheet(title="Empty")
+        ws['A1'] = 'No data to export'
+
+    # Write to bytes
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"'
+        }
+    )

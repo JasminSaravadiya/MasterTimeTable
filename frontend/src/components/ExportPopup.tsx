@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useStore } from '../store/useStore';
 import axios from 'axios';
-import * as XLSX from 'xlsx';
 import { parse, addMinutes, isBefore, format } from 'date-fns';
 
 const API_URL = 'http://localhost:8000/api';
@@ -133,55 +132,45 @@ export default function ExportPopup({ onClose }: ExportPopupProps) {
     return '';
   }, [selectedType, semesters, branches, faculties, rooms]);
 
-  // --- EXPORT ---
-  const buildExcelData = (allocs: any[]) => {
-    return allocs.map((a: any) => {
-      const sem = semesters.find((s: any) => s.id === a.semester_id);
-      const branch = sem ? branches.find((b: any) => b.id === sem.branch_id) : null;
-      return {
-        Day: a.day_of_week,
-        Time: a.start_time?.slice(0, 5),
-        Duration: a.duration_minutes,
-        Branch: branch?.name || '',
-        Semester: sem?.name || '',
-        Subject: subjects.find((sub: any) => sub.id === a.subject_id)?.name || '',
-        Faculty: faculties.find((f: any) => f.id === a.faculty_id)?.name || '',
-        Room: rooms.find((r: any) => r.id === a.room_id)?.name || '',
-        Batches: a.batches?.join(', ') || '',
-      };
-    });
+  // --- EXPORT via backend ---
+  const downloadExcel = async (exportType: string, itemId?: number) => {
+    try {
+      const params = new URLSearchParams({ config_id: String(currentConfig?.id), export_type: exportType });
+      if (itemId) params.set('item_id', String(itemId));
+
+      const response = await axios.get(`${API_URL}/export_excel?${params.toString()}`, { responseType: 'blob' });
+
+      // Extract filename from Content-Disposition header
+      const disposition = response.headers['content-disposition'] || '';
+      const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+      const filename = filenameMatch ? filenameMatch[1] : 'Timetable.xlsx';
+
+      // Create blob download
+      const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.response?.data?.detail || 'Export failed');
+    }
   };
 
   const handleExport = () => {
-    const data = buildExcelData(filteredAllocations);
-    const ws = XLSX.utils.json_to_sheet(data);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, selectionLabel.slice(0, 31));
-    XLSX.writeFile(wb, `${currentConfig?.name || 'Timetable'}_${selectionLabel}.xlsx`);
+    if (selectedType === 'master') {
+      downloadExcel('all');
+    } else {
+      const [type, id] = selectedType.split(':');
+      downloadExcel(type, parseInt(id));
+    }
   };
 
   const handleExportAll = () => {
-    const wb = XLSX.utils.book_new();
-    // One sheet per semester
-    semesters.forEach((s: any) => {
-      const branch = branches.find((b: any) => b.id === s.branch_id);
-      const semAllocs = allocations.filter((a: any) => a.semester_id === s.id);
-      const data = buildExcelData(semAllocs);
-      const sheetName = `${branch?.name || ''} ${s.name}`.slice(0, 31);
-      if (data.length > 0) {
-        const ws = XLSX.utils.json_to_sheet(data);
-        XLSX.utils.book_append_sheet(wb, ws, sheetName);
-      }
-    });
-    // Faculty sheets
-    faculties.forEach((f: any) => {
-      const facAllocs = allocations.filter((a: any) => a.faculty_id === f.id);
-      if (facAllocs.length > 0) {
-        const data = buildExcelData(facAllocs);
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), `Fac_${f.name}`.slice(0, 31));
-      }
-    });
-    XLSX.writeFile(wb, `${currentConfig?.name || 'Timetable'}_Complete.xlsx`);
+    downloadExcel('all');
   };
 
   const tabStyle = (tab: string) =>
