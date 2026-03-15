@@ -127,9 +127,13 @@ export default function Dashboard() {
       setConfig(res.data);
       addRecentConfig(res.data);
       navigate('/configure');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert('Failed to create config');
+      if (!error.response) {
+        alert('Cannot connect to backend server. Make sure the backend is running!');
+      } else {
+        alert('Failed to create config: ' + (error.response?.data?.detail || 'Unknown error'));
+      }
     }
   };
 

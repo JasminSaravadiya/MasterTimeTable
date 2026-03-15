@@ -2,7 +2,8 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import declarative_base
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///./timetable.db")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DATABASE_URL = os.getenv("DATABASE_URL", f"sqlite+aiosqlite:///{os.path.join(BASE_DIR, 'timetable.db')}")
 
 engine = create_async_engine(DATABASE_URL, echo=True, connect_args={"check_same_thread": False})
 async_session_maker = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)

@@ -157,42 +157,62 @@ export default function Configuration() {
   /* ─── CRUD helpers ─── */
   const handleAddBranch = async () => {
     if (!addBranchName.trim() || !currentConfig) return;
-    await axios.post(`${API_URL}/branches`, { name: addBranchName.trim(), config_id: currentConfig.id });
-    setAddBranchName('');
-    fetchAll();
+    try {
+      await axios.post(`${API_URL}/branches`, { name: addBranchName.trim(), config_id: currentConfig.id });
+      setAddBranchName('');
+      fetchAll();
+    } catch (error: any) {
+      alert(error.response?.data?.detail || 'Failed to add branch');
+    }
   };
 
   const handleAddSemester = async (branchId: number) => {
     if (!addSemName.trim() || !currentConfig) return;
-    await axios.post(`${API_URL}/semesters`, { name: addSemName.trim(), branch_id: branchId, config_id: currentConfig.id });
-    setAddSemName('');
-    setShowAddSem(null);
-    fetchAll();
+    try {
+      await axios.post(`${API_URL}/semesters`, { name: addSemName.trim(), branch_id: branchId, config_id: currentConfig.id });
+      setAddSemName('');
+      setShowAddSem(null);
+      fetchAll();
+    } catch (error: any) {
+      alert(error.response?.data?.detail || 'Failed to add semester');
+    }
   };
 
   const handleAddFaculty = async () => {
     if (!addFacultyName.trim() || !currentConfig) return;
     const mins = timeToMins(addFacultyWorkload);
-    await axios.post(`${API_URL}/faculties`, { name: addFacultyName.trim(), weekly_workload_minutes: mins, config_id: currentConfig.id });
-    setAddFacultyName('');
-    setAddFacultyWorkload('40:00');
-    fetchAll();
+    try {
+      await axios.post(`${API_URL}/faculties`, { name: addFacultyName.trim(), weekly_workload_minutes: mins, config_id: currentConfig.id });
+      setAddFacultyName('');
+      setAddFacultyWorkload('40:00');
+      fetchAll();
+    } catch (error: any) {
+      alert(error.response?.data?.detail || 'Failed to add faculty');
+    }
   };
 
   const handleAddSubject = async () => {
     if (!addSubjectName.trim() || !selectedSemId || !currentConfig) return;
-    await axios.post(`${API_URL}/subjects`, { name: addSubjectName.trim(), semester_id: selectedSemId, weekly_hours: parseFloat(addSubjectHours) || 4, config_id: currentConfig.id });
-    setAddSubjectName('');
-    setAddSubjectHours('4');
-    fetchAll();
+    try {
+      await axios.post(`${API_URL}/subjects`, { name: addSubjectName.trim(), semester_id: selectedSemId, weekly_hours: parseFloat(addSubjectHours) || 4, config_id: currentConfig.id });
+      setAddSubjectName('');
+      setAddSubjectHours('4');
+      fetchAll();
+    } catch (error: any) {
+      alert(error.response?.data?.detail || 'Failed to add subject');
+    }
   };
 
   const handleAddRoom = async () => {
     if (!addRoomName.trim() || !currentConfig) return;
-    await axios.post(`${API_URL}/rooms`, { name: addRoomName.trim(), capacity: parseInt(addRoomCapacity) || 60, config_id: currentConfig.id });
-    setAddRoomName('');
-    setAddRoomCapacity('60');
-    fetchAll();
+    try {
+      await axios.post(`${API_URL}/rooms`, { name: addRoomName.trim(), capacity: parseInt(addRoomCapacity) || 60, config_id: currentConfig.id });
+      setAddRoomName('');
+      setAddRoomCapacity('60');
+      fetchAll();
+    } catch (error: any) {
+      alert(error.response?.data?.detail || 'Failed to add room');
+    }
   };
 
   const handleDelete = (type: string, id: number) => {
@@ -246,18 +266,21 @@ export default function Configuration() {
     if (!editingItem) return;
     const { type, id, field, value } = editingItem;
 
-    if (type === 'faculties' && field === 'complex') {
-      const parsed = JSON.parse(value);
-      await axios.put(`${API_URL}/${type}/${id}`, { 
-        name: parsed.name, 
-        weekly_workload_minutes: timeToMins(parsed.workload) 
-      });
-    } else {
-      await axios.put(`${API_URL}/${type}/${id}`, { [field]: field === 'weekly_hours' || field === 'capacity' ? parseFloat(value) : value });
+    try {
+      if (type === 'faculties' && field === 'complex') {
+        const parsed = JSON.parse(value);
+        await axios.put(`${API_URL}/${type}/${id}`, { 
+          name: parsed.name, 
+          weekly_workload_minutes: timeToMins(parsed.workload) 
+        });
+      } else {
+        await axios.put(`${API_URL}/${type}/${id}`, { [field]: field === 'weekly_hours' || field === 'capacity' ? parseFloat(value) : value });
+      }
+      setEditingItem(null);
+      fetchAll();
+    } catch (error: any) {
+      alert(error.response?.data?.detail || `Failed to update ${type}`);
     }
-    
-    setEditingItem(null);
-    fetchAll();
   };
 
   /* ─── Drag handlers ─── */

@@ -51,6 +51,16 @@ async def read_configs(db: AsyncSession = Depends(get_db)):
 # ═══════════════════════════════════
 @app.post("/api/branches", response_model=schemas.BranchOut)
 async def create_branch(branch: schemas.BranchCreate, db: AsyncSession = Depends(get_db)):
+    # Prevent duplicate branch names within the same config
+    if branch.config_id is not None:
+        existing = await db.execute(
+            select(models.Branch).filter(
+                models.Branch.config_id == branch.config_id,
+                models.Branch.name == branch.name
+            )
+        )
+        if existing.scalars().first():
+            raise HTTPException(status_code=400, detail="This entry already exists.")
     db_branch = models.Branch(**branch.model_dump())
     db.add(db_branch)
     await db.commit()
@@ -210,6 +220,16 @@ async def delete_subject(subject_id: int, db: AsyncSession = Depends(get_db)):
 # ═══════════════════════════════════
 @app.post("/api/faculties", response_model=schemas.FacultyOut)
 async def create_faculty(faculty: schemas.FacultyCreate, db: AsyncSession = Depends(get_db)):
+    # Prevent duplicate faculty names within the same config
+    if faculty.config_id is not None:
+        existing = await db.execute(
+            select(models.Faculty).filter(
+                models.Faculty.config_id == faculty.config_id,
+                models.Faculty.name == faculty.name
+            )
+        )
+        if existing.scalars().first():
+            raise HTTPException(status_code=400, detail="This entry already exists.")
     db_faculty = models.Faculty(**faculty.model_dump())
     db.add(db_faculty)
     await db.commit()
@@ -251,6 +271,16 @@ async def delete_faculty(faculty_id: int, db: AsyncSession = Depends(get_db)):
 # ═══════════════════════════════════
 @app.post("/api/rooms", response_model=schemas.RoomOut)
 async def create_room(room: schemas.RoomCreate, db: AsyncSession = Depends(get_db)):
+    # Prevent duplicate room names within the same config
+    if room.config_id is not None:
+        existing = await db.execute(
+            select(models.Room).filter(
+                models.Room.config_id == room.config_id,
+                models.Room.name == room.name
+            )
+        )
+        if existing.scalars().first():
+            raise HTTPException(status_code=400, detail="This entry already exists.")
     db_room = models.Room(**room.model_dump())
     db.add(db_room)
     await db.commit()
@@ -376,20 +406,64 @@ async def create_allocation(allocation: schemas.AllocationCreate, db: AsyncSessi
 
         if check_overlap(new_start, new_end, ext_start, ext_end):
             if ext.faculty_id == allocation.faculty_id:
-                raise HTTPException(status_code=400, detail="This faculty is already assigned to another session in this time slot.")
-            if ext.semester_id == allocation.semester_id:
-                # If either has no batches specific, it implies the entire semester is occupied
-                if not ext.batches or not allocation.batches:
-                    raise HTTPException(status_code=400, detail="Semester/Batch collision detected (full class overlap)!")
-                # If they both have batches, check for intersection
-                if set(ext.batches).intersection(set(allocation.batches)):
-                    raise HTTPException(status_code=400, detail="Semester/Batch collision detected among overlapping batches!")
+                raise HTTPException(status_code=400, detail="This faculty is already assigned in this time slot.")
 
     db_allocation = models.Allocation(**allocation.model_dump())
     db.add(db_allocation)
     await db.commit()
     await db.refresh(db_allocation)
     return db_allocation
+
+@app.put("/api/allocations/{allocation_id}", response_model=schemas.AllocationOut)
+async def update_allocation(allocation_id: int, data: schemas.AllocationUpdate, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(models.Allocation).filter(models.Allocation.id == allocation_id))
+    db_allocation = result.scalars().first()
+    if not db_allocation:
+        raise HTTPException(status_code=404, detail="Allocation not found")
+        
+    update_data = data.model_dump(exclude_unset=True)
+    if not update_data:
+        return db_allocation
+
+    # Overlap validation logic if changing subject, faculty, room or duration
+    # We validate using the proposed state of this allocation
+    new_day = db_allocation.day_of_week
+    new_start = db_allocation.start_time
+    # Use existing or proposed details
+    prop_duration = update_data.get('duration_minutes', db_allocation.duration_minutes)
+    prop_faculty = update_data.get('faculty_id', db_allocation.faculty_id)
+    prop_sem = db_allocation.semester_id # Fixed in this context
+    prop_batches = update_data.get('batches', db_allocation.batches)
+    
+    new_end = add_minutes(new_start, prop_duration)
+
+    ext_result = await db.execute(select(models.Allocation).filter(models.Allocation.day_of_week == new_day, models.Allocation.id != allocation_id))
+    existing_allocations = ext_result.scalars().all()
+
+    for ext in existing_allocations:
+        ext_start = ext.start_time
+        ext_end = add_minutes(ext_start, ext.duration_minutes)
+
+        if check_overlap(new_start, new_end, ext_start, ext_end):
+            if ext.faculty_id == prop_faculty:
+                raise HTTPException(status_code=400, detail="This faculty is already assigned in this time slot.")
+
+    for k, v in update_data.items():
+        setattr(db_allocation, k, v)
+        
+    await db.commit()
+    await db.refresh(db_allocation)
+    return db_allocation
+
+@app.delete("/api/allocations/{allocation_id}")
+async def delete_allocation(allocation_id: int, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(models.Allocation).filter(models.Allocation.id == allocation_id))
+    allocation = result.scalars().first()
+    if not allocation:
+        raise HTTPException(status_code=404, detail="Allocation not found")
+    await db.delete(allocation)
+    await db.commit()
+    return {"status": "deleted"}
 
 @app.get("/api/allocations", response_model=List[schemas.AllocationOut])
 async def read_allocations(db: AsyncSession = Depends(get_db)):

@@ -126,6 +126,13 @@ class AllocationBase(BaseModel):
 class AllocationCreate(AllocationBase):
     pass
 
+class AllocationUpdate(BaseModel):
+    subject_id: Optional[int] = None
+    faculty_id: Optional[int] = None
+    room_id: Optional[int] = None
+    duration_minutes: Optional[int] = None
+    batches: Optional[List[str]] = None
+
 class AllocationOut(AllocationBase):
     id: int
     class Config:

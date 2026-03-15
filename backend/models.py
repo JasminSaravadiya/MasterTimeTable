@@ -16,7 +16,7 @@ class Branch(Base):
     __tablename__ = "branches"
     id = Column(Integer, primary_key=True, index=True)
     config_id = Column(Integer, ForeignKey("timetable_configs.id"), nullable=True)
-    name = Column(String, unique=True, index=True)
+    name = Column(String, index=True)
     semesters = relationship("Semester", back_populates="branch")
 
 class Semester(Base):
@@ -41,14 +41,14 @@ class Faculty(Base):
     __tablename__ = "faculties"
     id = Column(Integer, primary_key=True, index=True)
     config_id = Column(Integer, ForeignKey("timetable_configs.id"), nullable=True)
-    name = Column(String, unique=True, index=True)
+    name = Column(String, index=True)
     weekly_workload_minutes = Column(Integer, default=2400)
 
 class Room(Base):
     __tablename__ = "rooms"
     id = Column(Integer, primary_key=True, index=True)
     config_id = Column(Integer, ForeignKey("timetable_configs.id"), nullable=True)
-    name = Column(String, unique=True, index=True)
+    name = Column(String, index=True)
     capacity = Column(Integer, default=0)
 
 class SemesterFacultyMap(Base):
