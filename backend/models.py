@@ -43,6 +43,7 @@ class Faculty(Base):
     config_id = Column(Integer, ForeignKey("timetable_configs.id"), nullable=True)
     name = Column(String, index=True)
     weekly_workload_minutes = Column(Integer, default=2400)
+    ignore_collision = Column(Boolean, default=False)
 
 class Room(Base):
     __tablename__ = "rooms"

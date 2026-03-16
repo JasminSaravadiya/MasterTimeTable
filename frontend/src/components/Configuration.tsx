@@ -17,18 +17,19 @@ const API_URL = 'http://localhost:8000/api';
    SHARED STYLES
    ═══════════════════════════════════════════════════════ */
 const glassCard: React.CSSProperties = {
-  background: 'rgba(255,255,255,0.03)',
-  border: '1px solid rgba(255,255,255,0.06)',
-  borderRadius: 16,
+  background: '#F4F0DF',
+  border: '1px solid #C9BE9A',
+  borderRadius: 14,
+  boxShadow: '0 3px 10px rgba(0,0,0,0.05)',
   backdropFilter: 'blur(8px)',
 };
 const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '10px 14px',
-  borderRadius: 10,
-  border: '1px solid rgba(255,255,255,0.1)',
-  background: 'rgba(0,0,0,0.25)',
-  color: '#e2e8f0',
+  borderRadius: 8,
+  border: '1px solid #C9BE9A',
+  background: '#FFFFFF',
+  color: '#2F2A1F',
   fontSize: 13,
   fontWeight: 500,
   outline: 'none',
@@ -37,15 +38,15 @@ const inputStyle: React.CSSProperties = {
   boxSizing: 'border-box' as const,
 };
 const btnPrimary: React.CSSProperties = {
-  padding: '8px 16px',
+  padding: '10px 18px',
   border: 'none',
-  borderRadius: 10,
-  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-  color: '#fff',
+  borderRadius: 8,
+  background: 'linear-gradient(#8A7650, #756341)',
+  color: '#2F2A1F',
   fontWeight: 700,
   fontSize: 13,
   cursor: 'pointer',
-  boxShadow: '0 4px 16px rgba(99,102,241,0.25)',
+  boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
   transition: 'all 0.2s',
   fontFamily: "'Inter', sans-serif",
 };
@@ -53,9 +54,9 @@ const iconBtnStyle: React.CSSProperties = {
   width: 28,
   height: 28,
   borderRadius: 8,
-  border: '1px solid rgba(255,255,255,0.08)',
-  background: 'rgba(255,255,255,0.04)',
-  color: '#94a3b8',
+  border: '1px solid #C9BE9A',
+  background: '#F4F0DF',
+  color: '#5E5642',
   fontSize: 13,
   cursor: 'pointer',
   display: 'flex',
@@ -65,7 +66,7 @@ const iconBtnStyle: React.CSSProperties = {
   fontFamily: "'Inter', sans-serif",
 };
 
-const ACCENT_COLORS = ['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
+const ACCENT_COLORS = ['#8A7650', '#8E977D', '#8E977D', '#f59e0b', '#ef4444', '#06b6d4', '#ec4899', '#14b8a6'];
 
 /* ═══════════════════════════════════════════════════════
    MAIN CONFIGURATION COMPONENT
@@ -273,6 +274,8 @@ export default function Configuration() {
           name: parsed.name, 
           weekly_workload_minutes: timeToMins(parsed.workload) 
         });
+      } else if (type === 'faculties' && field === 'ignore_collision') {
+        await axios.put(`${API_URL}/${type}/${id}`, { [field]: value === 'true' });
       } else {
         await axios.put(`${API_URL}/${type}/${id}`, { [field]: field === 'weekly_hours' || field === 'capacity' ? parseFloat(value) : value });
       }
@@ -312,20 +315,20 @@ export default function Configuration() {
 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-      <div style={{ display: 'flex', height: '100vh', background: 'linear-gradient(135deg, #0a0e1a 0%, #0f1629 40%, #131b33 100%)', color: '#fff', fontFamily: "'Inter', sans-serif", overflow: 'hidden' }}>
+      <div style={{ display: 'flex', height: '100vh', background: '#ECE7D1', color: '#2F2A1F', fontFamily: "'Inter', sans-serif", overflow: 'hidden' }}>
 
         {/* ════════════ LEFT PANEL — Branch Tree ════════════ */}
-        <div style={{ width: 260, minWidth: 260, borderRight: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ width: 260, minWidth: 260, borderRight: '1px solid #DBCEA5', background: '#F4F0DF', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           {/* Header */}
-          <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, background: 'linear-gradient(135deg, #818cf8, #a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+          <div style={{ padding: '24px 20px 16px', borderBottom: '1px solid #DBCEA5' }}>
+            <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, background: 'linear-gradient(#8A7650, #756341)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               {currentConfig?.name || 'Timetable'}
             </h2>
-            <p style={{ color: '#64748b', fontSize: 11, margin: '4px 0 0' }}>Screen 2 — Config Data</p>
+            <p style={{ color: '#5E5642', fontSize: 11, margin: '4px 0 0' }}>Screen 2 — Config Data</p>
           </div>
 
           {/* Add Branch */}
-          <div style={{ padding: '12px 16px', display: 'flex', gap: 6, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+          <div style={{ padding: '12px 16px', display: 'flex', gap: 6, borderBottom: '1px solid #DBCEA5' }}>
             <input
               placeholder="Branch name…"
               value={addBranchName}
@@ -333,7 +336,7 @@ export default function Configuration() {
               onKeyDown={e => e.key === 'Enter' && handleAddBranch()}
               style={{ ...inputStyle, fontSize: 12, padding: '8px 10px' }}
             />
-            <button onClick={handleAddBranch} style={{ ...iconBtnStyle, background: 'rgba(99,102,241,0.15)', color: '#818cf8', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>+</button>
+            <button onClick={handleAddBranch} className="btn-primary" style={{ ...iconBtnStyle, background: '', color: '', fontWeight: 700, fontSize: 16, flexShrink: 0 }}>+</button>
           </div>
 
           {/* Branch → Semester tree */}
@@ -344,7 +347,7 @@ export default function Configuration() {
               return (
                 <div key={branch.id} style={{ marginBottom: 8 }}>
                   {/* Branch header */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 8px', borderRadius: 10, background: `${accent}11`, border: `1px solid ${accent}22`, marginBottom: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 8px', borderRadius: 8, background: `${accent}11`, border: `1px solid ${accent}22`, marginBottom: 4 }}>
                     <div style={{ width: 8, height: 8, borderRadius: '50%', background: accent, flexShrink: 0 }} />
                     {editingItem?.type === 'branches' && editingItem.id === branch.id ? (
                       <input autoFocus value={editingItem.value} onChange={e => setEditingItem({ ...editingItem, value: e.target.value })}
@@ -352,10 +355,10 @@ export default function Configuration() {
                         onBlur={handleInlineEdit}
                         style={{ ...inputStyle, fontSize: 12, padding: '4px 8px', flexGrow: 1 }} />
                     ) : (
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', flexGrow: 1, cursor: 'default' }}>{branch.name}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: '#2F2A1F', flexGrow: 1, cursor: 'default' }}>{branch.name}</span>
                     )}
-                    <button onClick={() => setEditingItem({ type: 'branches', id: branch.id, field: 'name', value: branch.name })} style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 10, borderColor: 'transparent', background: 'transparent', color: '#64748b' }} title="Edit">✏️</button>
-                    <button onClick={() => handleDelete('branches', branch.id)} style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 10, borderColor: 'transparent', background: 'transparent', color: '#64748b' }} title="Delete">🗑️</button>
+                    <button onClick={() => setEditingItem({ type: 'branches', id: branch.id, field: 'name', value: branch.name })} style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 10, borderColor: 'transparent', background: 'transparent', color: '#5E5642' }} title="Edit">✏️</button>
+                    <button onClick={() => handleDelete('branches', branch.id)} style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 10, borderColor: 'transparent', background: 'transparent', color: '#5E5642' }} title="Delete">🗑️</button>
                     <button onClick={() => { setShowAddSem(showAddSem === branch.id ? null : branch.id); setAddSemName(''); }} style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 12, borderColor: 'transparent', background: 'transparent', color: accent }} title="Add Semester">+</button>
                   </div>
 
@@ -388,27 +391,27 @@ export default function Configuration() {
                           onBlur={handleInlineEdit} onClick={e => e.stopPropagation()}
                           style={{ ...inputStyle, fontSize: 11, padding: '3px 6px', flexGrow: 1 }} />
                       ) : (
-                        <span style={{ fontSize: 12, fontWeight: 500, color: selectedSemId === sem.id ? '#e2e8f0' : '#94a3b8', flexGrow: 1 }}>
+                        <span style={{ fontSize: 12, fontWeight: 500, color: selectedSemId === sem.id ? '#2B2B2B' : '#5A5A5A', flexGrow: 1 }}>
                           {branch.name} {sem.name}
                         </span>
                       )}
-                      <button onClick={e => { e.stopPropagation(); setEditingItem({ type: 'semesters', id: sem.id, field: 'name', value: sem.name }); }} style={{ ...iconBtnStyle, width: 18, height: 18, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#475569', opacity: 0.6 }}>✏️</button>
-                      <button onClick={e => { e.stopPropagation(); handleDelete('semesters', sem.id); }} style={{ ...iconBtnStyle, width: 18, height: 18, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#475569', opacity: 0.6 }}>🗑️</button>
+                      <button onClick={e => { e.stopPropagation(); setEditingItem({ type: 'semesters', id: sem.id, field: 'name', value: sem.name }); }} style={{ ...iconBtnStyle, width: 18, height: 18, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#5E5642', opacity: 0.6 }}>✏️</button>
+                      <button onClick={e => { e.stopPropagation(); handleDelete('semesters', sem.id); }} style={{ ...iconBtnStyle, width: 18, height: 18, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#5E5642', opacity: 0.6 }}>🗑️</button>
                     </div>
                   ))}
                 </div>
               );
             })}
             {branches.length === 0 && (
-              <p style={{ color: '#475569', fontSize: 12, textAlign: 'center', padding: '24px 0' }}>
+              <p style={{ color: '#5E5642', fontSize: 12, textAlign: 'center', padding: '24px 0' }}>
                 Add your first branch above
               </p>
             )}
           </div>
 
           {/* Next button */}
-          <div style={{ padding: '16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-            <button onClick={() => navigate('/grid')} style={{ ...btnPrimary, width: '100%', padding: '12px 0', borderRadius: 12, background: 'linear-gradient(135deg, #10b981, #059669)' }}>
+          <div style={{ padding: '16px', borderTop: '1px solid #DBCEA5' }}>
+            <button onClick={() => navigate('/grid')} className="btn-primary" style={{ width: '100%', padding: '12px 0', borderRadius: 12 }}>
               Next →
             </button>
           </div>
@@ -419,24 +422,24 @@ export default function Configuration() {
           {selectedSemId && selectedBranch && selectedSem ? (
             <>
               {/* Semester header */}
-              <div style={{ padding: '20px 28px 12px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#e2e8f0' }}>
+              <div style={{ padding: '20px 28px 12px', borderBottom: '1px solid #DBCEA5' }}>
+                <h2 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#2F2A1F' }}>
                   {selectedBranch.name} — {selectedSem.name}
                 </h2>
-                <p style={{ color: '#64748b', fontSize: 12, margin: '4px 0 0' }}>Manage subjects and assign faculty</p>
+                <p style={{ color: '#5E5642', fontSize: 12, margin: '4px 0 0' }}>Manage subjects and assign faculty</p>
               </div>
 
               <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px', display: 'flex', gap: 20 }}>
                 {/* ── Subjects Section ── */}
                 <div style={{ flex: 1.2 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                    <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: '#5E5642', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
                       📚 Subjects
                     </h3>
                   </div>
 
                   {/* Subject header row */}
-                  <div style={{ display: 'flex', padding: '8px 14px', fontSize: 11, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <div style={{ display: 'flex', padding: '8px 14px', fontSize: 11, fontWeight: 700, color: '#5E5642', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #DBCEA5' }}>
                     <span style={{ flex: 1 }}>Subject</span>
                     <span style={{ width: 80, textAlign: 'center' }}>Hours</span>
                     <span style={{ width: 60 }}></span>
@@ -444,7 +447,7 @@ export default function Configuration() {
 
                   {/* Subject rows */}
                   {semSubjects.map((sub: any, idx: number) => (
-                    <div key={sub.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.03)', animation: `fadeInUp 0.3s ease ${idx * 0.04}s both` }}>
+                    <div key={sub.id} style={{ display: 'flex', alignItems: 'center', padding: '10px 14px', borderBottom: '1px solid #DBCEA5', animation: `fadeInUp 0.3s ease ${idx * 0.04}s both` }}>
                       {editingItem?.type === 'subjects' && editingItem.id === sub.id ? (
                         <>
                           <input autoFocus value={editingItem.value} onChange={e => setEditingItem({ ...editingItem, value: e.target.value })}
@@ -454,7 +457,7 @@ export default function Configuration() {
                         </>
                       ) : (
                         <>
-                          <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#e2e8f0' }}>{sub.name}</span>
+                          <span style={{ flex: 1, fontSize: 14, fontWeight: 600, color: '#2F2A1F' }}>{sub.name}</span>
                           <span style={{ width: 80, textAlign: 'center', fontSize: 13, fontWeight: 600, color: ACCENT_COLORS[idx % ACCENT_COLORS.length] }}>{sub.weekly_hours}h</span>
                           <div style={{ width: 60, display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
                             <button onClick={() => setEditingItem({ type: 'subjects', id: sub.id, field: 'name', value: sub.name })} style={{ ...iconBtnStyle, width: 24, height: 24, fontSize: 10 }}>✏️</button>
@@ -472,11 +475,11 @@ export default function Configuration() {
                       style={{ ...inputStyle, flex: 1, fontSize: 12 }} />
                     <input placeholder="Hrs" value={addSubjectHours} onChange={e => setAddSubjectHours(e.target.value)} type="number" min="1"
                       style={{ ...inputStyle, width: 60, fontSize: 12, textAlign: 'center' }} />
-                    <button onClick={handleAddSubject} style={{ ...btnPrimary, fontSize: 12, padding: '8px 14px' }}>+ Add</button>
+                    <button onClick={handleAddSubject} className="btn-primary" style={{ fontSize: 12, padding: '8px 14px' }}>+ Add</button>
                   </div>
 
                   {semSubjects.length === 0 && (
-                    <p style={{ color: '#475569', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No subjects yet — add one above</p>
+                    <p style={{ color: '#5E5642', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>No subjects yet — add one above</p>
                   )}
                 </div>
 
@@ -490,26 +493,26 @@ export default function Configuration() {
             </>
           ) : (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, animation: 'fadeIn 0.4s ease' }}>
-              <div style={{ width: 72, height: 72, borderRadius: 18, background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>🎯</div>
-              <p style={{ color: '#475569', fontSize: 15, fontWeight: 600 }}>Select a semester</p>
-              <p style={{ color: '#334155', fontSize: 12 }}>Choose a branch & semester from the left panel</p>
+              <div style={{ width: 72, height: 72, borderRadius: 18, background: '#F4F0DF', border: '1px solid rgba(138,118,80,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32 }}>🎯</div>
+              <p style={{ color: '#5E5642', fontSize: 15, fontWeight: 600 }}>Select a semester</p>
+              <p style={{ color: '#5E5642', fontSize: 12 }}>Choose a branch & semester from the left panel</p>
             </div>
           )}
         </div>
 
         {/* ════════════ RIGHT PANEL — Faculty & Rooms ════════════ */}
-        <div style={{ width: 280, minWidth: 280, borderLeft: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ width: 280, minWidth: 280, borderLeft: '1px solid #DBCEA5', background: '#F4F0DF', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           
           {/* ----- TABS HEADER ----- */}
-          <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ display: 'flex', borderBottom: '1px solid #DBCEA5' }}>
             <button 
               onClick={() => setActiveTab('faculty')}
-              style={{ flex: 1, padding: '16px 0', background: activeTab === 'faculty' ? 'rgba(255,255,255,0.03)' : 'transparent', border: 'none', borderBottom: activeTab === 'faculty' ? '2px solid #6366f1' : '2px solid transparent', color: activeTab === 'faculty' ? '#e2e8f0' : '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'all 0.2s' }}>
+              style={{ flex: 1, padding: '16px 0', background: activeTab === 'faculty' ? '#DBCEA5' : 'transparent', border: 'none', borderBottom: activeTab === 'faculty' ? '2px solid #8A7650' : '2px solid transparent', color: activeTab === 'faculty' ? '#2B2B2B' : '#5A5A5A', fontWeight: 700, fontSize: 13, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'all 0.2s' }}>
               👥 Faculty
             </button>
             <button 
               onClick={() => setActiveTab('rooms')}
-              style={{ flex: 1, padding: '16px 0', background: activeTab === 'rooms' ? 'rgba(255,255,255,0.03)' : 'transparent', border: 'none', borderBottom: activeTab === 'rooms' ? '2px solid #10b981' : '2px solid transparent', color: activeTab === 'rooms' ? '#e2e8f0' : '#64748b', fontWeight: 700, fontSize: 13, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'all 0.2s' }}>
+              style={{ flex: 1, padding: '16px 0', background: activeTab === 'rooms' ? '#DBCEA5' : 'transparent', border: 'none', borderBottom: activeTab === 'rooms' ? '2px solid #8E977D' : '2px solid transparent', color: activeTab === 'rooms' ? '#2B2B2B' : '#5A5A5A', fontWeight: 700, fontSize: 13, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em', transition: 'all 0.2s' }}>
               🏢 Rooms
             </button>
           </div>
@@ -519,9 +522,9 @@ export default function Configuration() {
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               {/* Header */}
               <div style={{ padding: '16px 16px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#e2e8f0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Faculty List</h3>
+                <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#2F2A1F', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Faculty List</h3>
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <button onClick={() => setShowAllFaculty(!showAllFaculty)} style={{ ...iconBtnStyle, fontSize: 10, width: 'auto', padding: '4px 8px', height: 22, color: showAllFaculty ? '#818cf8' : '#64748b' }}>
+                  <button onClick={() => setShowAllFaculty(!showAllFaculty)} style={{ ...iconBtnStyle, fontSize: 10, width: 'auto', padding: '4px 8px', height: 22, color: showAllFaculty ? '#8A7650' : '#5A5A5A' }}>
                     {showAllFaculty ? 'Hide' : 'All'}
                   </button>
                 </div>
@@ -536,7 +539,7 @@ export default function Configuration() {
                   onKeyDown={e => e.key === 'Enter' && handleAddFaculty()}
                   title="Weekly Workload (HH:MM)"
                   style={{ ...inputStyle, width: 60, fontSize: 12, padding: '6px 4px', textAlign: 'center' }} />
-                <button onClick={handleAddFaculty} style={{ ...iconBtnStyle, background: 'rgba(99,102,241,0.15)', color: '#818cf8', fontWeight: 700, fontSize: 16, height: 30, width: 30, flexShrink: 0 }}>+</button>
+                <button onClick={handleAddFaculty} className="btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 30, width: 30, flexShrink: 0 }}>+</button>
               </div>
 
               {/* Faculty cards */}
@@ -552,11 +555,17 @@ export default function Configuration() {
                     onEditSubmit={handleInlineEdit}
                     onEditCancel={() => setEditingItem(null)}
                     onDelete={() => handleDelete('faculties', fac.id)}
+                    onToggleCollision={async (newVal: boolean) => {
+                      try {
+                        await axios.put(`${API_URL}/faculties/${fac.id}`, { ignore_collision: newVal });
+                        fetchAll();
+                      } catch (err) { }
+                    }}
                     isMapped={!!mappedFaculties.find((mf: any) => mf.id === fac.id)}
                   />
                 ))}
                 {faculties.length === 0 && (
-                  <p style={{ color: '#475569', fontSize: 11, textAlign: 'center', padding: '16px 0' }}>Add your first faculty</p>
+                  <p style={{ color: '#5E5642', fontSize: 11, textAlign: 'center', padding: '16px 0' }}>Add your first faculty</p>
                 )}
               </div>
             </div>
@@ -566,7 +575,7 @@ export default function Configuration() {
           {activeTab === 'rooms' && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
               <div style={{ padding: '16px 16px 8px' }}>
-                <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#e2e8f0', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Room List</h3>
+                <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, color: '#2F2A1F', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Room List</h3>
               </div>
 
               {/* Add Room */}
@@ -577,14 +586,14 @@ export default function Configuration() {
                 <input placeholder="Cap" value={addRoomCapacity} onChange={e => setAddRoomCapacity(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleAddRoom()} type="number"
                   style={{ ...inputStyle, fontSize: 12, padding: '6px 4px', width: 44, textAlign: 'center' }} title="Capacity" />
-                <button onClick={handleAddRoom} style={{ ...iconBtnStyle, background: 'rgba(99,102,241,0.15)', color: '#818cf8', fontWeight: 700, fontSize: 16, height: 30, width: 30, flexShrink: 0 }}>+</button>
+                <button onClick={handleAddRoom} className="btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 30, width: 30, flexShrink: 0 }}>+</button>
               </div>
 
               {/* Room cards */}
               <div style={{ flex: 1, overflowY: 'auto', padding: '8px 12px' }}>
                 {rooms.map((rm: any, idx: number) => (
                   <div key={rm.id} style={{
-                    padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, animation: `fadeInUp 0.3s ease ${idx * 0.04}s both`
+                    padding: '10px 12px', borderRadius: 8, background: '#F4F0DF', border: '1px solid #C9BE9A', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8, animation: `fadeInUp 0.3s ease ${idx * 0.04}s both`
                   }}>
                     <div style={{ width: 28, height: 28, borderRadius: 6, background: 'rgba(16,185,129,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>
                       🚪
@@ -596,16 +605,16 @@ export default function Configuration() {
                           onBlur={handleInlineEdit}
                           style={{ ...inputStyle, fontSize: 12, padding: '2px 6px' }} />
                       ) : (
-                        <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rm.name}</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: '#2F2A1F', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{rm.name}</span>
                       )}
-                      <span style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>Cap: {rm.capacity}</span>
+                      <span style={{ fontSize: 10, color: '#8E977D', fontWeight: 600 }}>Cap: {rm.capacity}</span>
                     </div>
-                    <button onClick={() => setEditingItem({ type: 'rooms', id: rm.id, field: 'name', value: rm.name })} style={{ ...iconBtnStyle, width: 20, height: 20, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#64748b' }}>✏️</button>
-                    <button onClick={() => handleDelete('rooms', rm.id)} style={{ ...iconBtnStyle, width: 20, height: 20, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#64748b' }}>🗑️</button>
+                    <button onClick={() => setEditingItem({ type: 'rooms', id: rm.id, field: 'name', value: rm.name })} style={{ ...iconBtnStyle, width: 20, height: 20, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#5E5642' }}>✏️</button>
+                    <button onClick={() => handleDelete('rooms', rm.id)} style={{ ...iconBtnStyle, width: 20, height: 20, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#5E5642' }}>🗑️</button>
                   </div>
                 ))}
                 {rooms.length === 0 && (
-                  <p style={{ color: '#475569', fontSize: 11, textAlign: 'center', padding: '16px 0' }}>Add your first room</p>
+                  <p style={{ color: '#5E5642', fontSize: 11, textAlign: 'center', padding: '16px 0' }}>Add your first room</p>
                 )}
               </div>
             </div>
@@ -618,7 +627,7 @@ export default function Configuration() {
         {/* Drag overlay */}
         <DragOverlay>
           {activeDragId ? (
-            <div style={{ padding: '10px 16px', borderRadius: 12, background: 'linear-gradient(135deg, #1e1b4b, #312e81)', border: '1px solid #6366f1', color: '#e2e8f0', fontSize: 13, fontWeight: 700, boxShadow: '0 12px 40px rgba(0,0,0,0.5)', cursor: 'grabbing' }}>
+            <div style={{ padding: '10px 16px', borderRadius: 12, background: '#F4F0DF', border: '1px solid #C9BE9A', color: '#2F2A1F', fontSize: 13, fontWeight: 700, boxShadow: '0 12px 40px rgba(0,0,0,0.5)', cursor: 'grabbing' }}>
               {faculties.find((f: any) => `fac-${f.id}` === activeDragId)?.name || 'Faculty'}
             </div>
           ) : null}
@@ -627,27 +636,28 @@ export default function Configuration() {
         {/* Custom Delete Confirmation Modal */}
         {confirmDeleteObj && (
           <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}>
-            <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', padding: 24, borderRadius: 16, width: confirmDeleteObj.type === 'branches' ? 380 : 320, textAlign: confirmDeleteObj.type === 'branches' ? 'left' : 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.4)', animation: 'fadeInUp 0.2s ease' }}>
+            <div style={{ background: '#F4F0DF', border: '1px solid #C9BE9A', padding: 24, borderRadius: 14,
+  boxShadow: '0 20px 40px rgba(0,0,0,0.4)', width: confirmDeleteObj.type === 'branches' ? 380 : 320, textAlign: confirmDeleteObj.type === 'branches' ? 'left' : 'center', animation: 'fadeInUp 0.2s ease' }}>
               <div style={{ fontSize: 32, marginBottom: 12, textAlign: 'center' }}>⚠️</div>
-              <h3 style={{ margin: '0 0 8px', fontSize: 16, color: '#f8fafc', textAlign: 'center' }}>Confirm Deletion</h3>
+              <h3 style={{ margin: '0 0 8px', fontSize: 16, color: '#2F2A1F', textAlign: 'center' }}>Confirm Deletion</h3>
               
               {confirmDeleteObj.type === 'branches' ? (
                 <div style={{ background: 'rgba(239,68,68,0.1)', padding: '12px 16px', borderRadius: 8, border: '1px solid rgba(239,68,68,0.2)', marginBottom: 24 }}>
                   <p style={{ margin: '0 0 8px', fontSize: 13, color: '#fca5a5', fontWeight: 600 }}>Are you sure you want to delete this branch?</p>
                   <p style={{ margin: '0 0 4px', fontSize: 12, color: '#cbd5e1' }}>Deleting a branch will remove:</p>
-                  <ul style={{ margin: '0 0 12px', paddingLeft: 20, fontSize: 12, color: '#94a3b8' }}>
+                  <ul style={{ margin: '0 0 12px', paddingLeft: 20, fontSize: 12, color: '#5E5642' }}>
                     <li>All semesters inside the branch</li>
                     <li>Subjects under those semesters</li>
                   </ul>
                   <p style={{ margin: 0, fontSize: 12, color: '#f87171', fontWeight: 600 }}>This action cannot be undone.</p>
                 </div>
               ) : (
-                <p style={{ margin: '0 0 24px', fontSize: 13, color: '#94a3b8', textAlign: 'center' }}>Are you sure you want to delete this item?</p>
+                <p style={{ margin: '0 0 24px', fontSize: 13, color: '#5E5642', textAlign: 'center' }}>Are you sure you want to delete this item?</p>
               )}
 
               <div style={{ display: 'flex', gap: 12 }}>
-                <button onClick={() => setConfirmDeleteObj(null)} style={{ flex: 1, padding: '10px 0', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: '#e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, transition: 'background 0.2s' }}>Cancel</button>
-                <button onClick={confirmDeletion} style={{ flex: 1, padding: '10px 0', background: '#e11d48', border: 'none', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 600, transition: 'background 0.2s' }}>Delete</button>
+                <button onClick={() => setConfirmDeleteObj(null)} style={{ flex: 1, padding: '10px 0', background: '#FFFFFF', border: '1px solid #C9BE9A', color: '#2F2A1F', borderRadius: 8, cursor: 'pointer', fontWeight: 600, transition: 'background 0.2s' }}>Cancel</button>
+                <button onClick={confirmDeletion} style={{ flex: 1, padding: '10px 0', background: '#e11d48', border: 'none', color: '#2F2A1F', borderRadius: 8, cursor: 'pointer', fontWeight: 600, transition: 'background 0.2s' }}>Delete</button>
               </div>
             </div>
           </div>
@@ -660,21 +670,22 @@ export default function Configuration() {
 /* ═══════════════════════════════════════════════════════
    DRAGGABLE FACULTY CARD
    ═══════════════════════════════════════════════════════ */
-function DraggableFacultyCard({ faculty, idx, editingItem, onEdit, onEditChange, onEditSubmit, onEditCancel, onDelete, isMapped }: any) {
+function DraggableFacultyCard({ faculty, idx, editingItem, onEdit, onEditChange, onEditSubmit, onEditCancel, onDelete, onToggleCollision, isMapped }: any) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: `fac-${faculty.id}` });
   const accent = ACCENT_COLORS[idx % ACCENT_COLORS.length];
 
   return (
     <div
       ref={setNodeRef}
+      className="faculty-card"
       style={{
         transform: CSS.Transform.toString(transform),
         transition,
         opacity: isDragging ? 0.4 : 1,
         padding: '12px 14px',
         borderRadius: 12,
-        background: isMapped ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.03)',
-        border: `1px solid ${isMapped ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.06)'}`,
+        background: isMapped ? 'rgba(16,185,129,0.06)' : '#DBCEA5',
+        border: `1px solid ${isMapped ? 'rgba(16,185,129,0.2)' : '#DBCEA5'}`,
         marginBottom: 6,
         cursor: 'grab',
         display: 'flex',
@@ -702,22 +713,45 @@ function DraggableFacultyCard({ faculty, idx, editingItem, onEdit, onEditChange,
           </div>
         ) : (
           <>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#e2e8f0', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{faculty.name}</span>
-            <span style={{ fontSize: 10, color: '#94a3b8' }}>Workload: {minsToTime(faculty.weekly_workload_minutes)} (weekly)</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: '#2F2A1F', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{faculty.name}</span>
+            <span style={{ fontSize: 10, color: '#5E5642' }}>Workload: {minsToTime(faculty.weekly_workload_minutes)} (weekly)</span>
+            
+            {/* Ignore Collision Toggle */}
+            <div 
+              style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}
+              onClick={e => e.stopPropagation()}
+              onMouseDown={e => e.stopPropagation()}
+              onPointerDown={e => e.stopPropagation()}
+            >
+              <span style={{ fontSize: 10, color: '#5E5642', fontWeight: 600 }}>Ignore Collision</span>
+              <input
+                type="checkbox"
+                checked={faculty.ignore_collision || false}
+                onClick={e => e.stopPropagation()}
+                onMouseDown={e => e.stopPropagation()}
+                onPointerDown={e => e.stopPropagation()}
+                onChange={e => {
+                  e.stopPropagation();
+                  onToggleCollision(e.target.checked);
+                }}
+                style={{ cursor: 'pointer', width: 14, height: 14 }}
+                title="Ignore Collision"
+              />
+            </div>
           </>
         )}
-        {isMapped && <span style={{ fontSize: 10, color: '#10b981', fontWeight: 600 }}>Mapped ✓</span>}
+        {isMapped && <span style={{ fontSize: 10, color: '#8E977D', fontWeight: 600 }}>Mapped ✓</span>}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
         <button
           onClick={e => { e.stopPropagation(); onEdit(); }}
           onPointerDown={e => e.stopPropagation()}
-          style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#64748b' }}
+          style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#5E5642' }}
         >✏️</button>
         <button
           onClick={e => { e.stopPropagation(); onDelete(); }}
           onPointerDown={e => e.stopPropagation()}
-          style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#64748b' }}
+          style={{ ...iconBtnStyle, width: 22, height: 22, fontSize: 9, borderColor: 'transparent', background: 'transparent', color: '#5E5642' }}
         >🗑️</button>
       </div>
     </div>
@@ -734,13 +768,13 @@ function FacultyDropZone({ mappedFaculties, onUnmap, semLabel }: { mappedFaculti
     <div ref={setNodeRef} style={{
       flex: 0.8,
       ...glassCard,
-      borderColor: isOver ? 'rgba(99,102,241,0.4)' : 'rgba(255,255,255,0.06)',
-      background: isOver ? 'rgba(99,102,241,0.06)' : 'rgba(255,255,255,0.03)',
+      borderColor: isOver ? '#8A7650' : '#DBCEA5',
+      background: isOver ? '#DBCEA5' : '#DBCEA5',
       padding: 16,
       display: 'flex', flexDirection: 'column',
       transition: 'all 0.2s',
     }}>
-      <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+      <h3 style={{ margin: '0 0 12px', fontSize: 13, fontWeight: 700, color: '#5E5642', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
         👥 {semLabel} Faculties
       </h3>
 
@@ -748,13 +782,13 @@ function FacultyDropZone({ mappedFaculties, onUnmap, semLabel }: { mappedFaculti
         {mappedFaculties.map((fac: any, idx: number) => (
           <div key={fac.id} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '10px 12px', borderRadius: 10,
+            padding: '10px 12px', borderRadius: 8,
             background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)',
             marginBottom: 6, animation: `fadeInUp 0.3s ease ${idx * 0.05}s both`,
           }}>
             <div>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#d1fae5' }}>{fac.name}</span>
-              <p style={{ fontSize: 10, color: '#64748b', margin: '2px 0 0' }}>Remaining Workload</p>
+              <p style={{ fontSize: 10, color: '#5E5642', margin: '2px 0 0' }}>Remaining Workload</p>
             </div>
             <button onClick={() => onUnmap(fac.id)} style={{ ...iconBtnStyle, width: 24, height: 24, fontSize: 10 }} title="Unmap faculty">✕</button>
           </div>
@@ -762,7 +796,7 @@ function FacultyDropZone({ mappedFaculties, onUnmap, semLabel }: { mappedFaculti
         {mappedFaculties.length === 0 && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 0', gap: 8 }}>
             <span style={{ fontSize: 24 }}>↩️</span>
-            <p style={{ color: '#475569', fontSize: 12, textAlign: 'center', lineHeight: 1.5 }}>
+            <p style={{ color: '#5E5642', fontSize: 12, textAlign: 'center', lineHeight: 1.5 }}>
               Drag faculty from the<br />right panel to assign
             </p>
           </div>
@@ -781,14 +815,14 @@ function DustbinZone({ isActive }: { isActive: boolean }) {
   return (
     <div ref={setNodeRef} style={{
       padding: '16px',
-      borderTop: '1px solid rgba(255,255,255,0.06)',
+      borderTop: '1px solid #DBCEA5',
       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
       background: isOver ? 'rgba(239,68,68,0.12)' : isActive ? 'rgba(239,68,68,0.04)' : 'transparent',
       transition: 'all 0.2s',
       opacity: isActive ? 1 : 0.3,
     }}>
       <span style={{ fontSize: 20 }}>🗑️</span>
-      <span style={{ fontSize: 12, fontWeight: 600, color: isOver ? '#f87171' : '#64748b' }}>
+      <span style={{ fontSize: 12, fontWeight: 600, color: isOver ? '#f87171' : '#5A5A5A' }}>
         {isOver ? 'Release to delete' : 'Drop here to delete'}
       </span>
     </div>

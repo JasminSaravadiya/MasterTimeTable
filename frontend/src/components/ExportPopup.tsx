@@ -133,17 +133,24 @@ export default function ExportPopup({ onClose }: ExportPopupProps) {
   }, [selectedType, semesters, branches, faculties, rooms]);
 
   // --- EXPORT via backend ---
-  const downloadExcel = async (exportType: string, itemId?: number) => {
+  const downloadExcel = async (exportMode: string, exportValue?: string) => {
     try {
-      const params = new URLSearchParams({ config_id: String(currentConfig?.id), export_type: exportType });
-      if (itemId) params.set('item_id', String(itemId));
+      const params = new URLSearchParams({ config_id: String(currentConfig?.id), mode: exportMode });
+      if (exportValue) params.set('value', exportValue);
 
       const response = await axios.get(`${API_URL}/export_excel?${params.toString()}`, { responseType: 'blob' });
 
       // Extract filename from Content-Disposition header
-      const disposition = response.headers['content-disposition'] || '';
-      const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
-      const filename = filenameMatch ? filenameMatch[1] : 'Timetable.xlsx';
+      let filename = 'Timetable.xlsx';
+      const disposition = response.headers['content-disposition'];
+
+      if (disposition && disposition.indexOf('attachment') !== -1) {
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(disposition);
+        if (matches != null && matches[1]) {
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
 
       // Create blob download
       const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
@@ -162,10 +169,9 @@ export default function ExportPopup({ onClose }: ExportPopupProps) {
 
   const handleExport = () => {
     if (selectedType === 'master') {
-      downloadExcel('all');
+      downloadExcel('master');
     } else {
-      const [type, id] = selectedType.split(':');
-      downloadExcel(type, parseInt(id));
+      downloadExcel('selected', selectedType);
     }
   };
 
@@ -174,28 +180,27 @@ export default function ExportPopup({ onClose }: ExportPopupProps) {
   };
 
   const tabStyle = (tab: string) =>
-    `flex-1 py-2.5 text-xs font-bold uppercase tracking-wider text-center cursor-pointer transition-all border-b-2 ${
-      activeTab === tab
-        ? 'border-blue-500 text-blue-400 bg-blue-500/10'
-        : 'border-transparent text-slate-500 hover:text-slate-300 hover:bg-slate-700/30'
+    `flex-1 py-2.5 text-xs font-bold uppercase tracking-wider text-center cursor-pointer transition-all border-b-2 ${activeTab === tab
+      ? 'border-transparent text-white bg-[#8A7650]'
+      : 'border-transparent text-[#5E5642] bg-[#DBCEA5] hover:bg-[#C9BE9A]'
     }`;
 
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4" onClick={onClose}>
       <div
-        className="bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl w-full max-w-[95vw] h-[90vh] flex overflow-hidden"
+        className="bg-[#ECE7D1] border border-[#C9BE9A] rounded-2xl shadow-2xl w-full max-w-[95vw] h-[90vh] flex overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* ══════ LEFT PANEL ══════ */}
-        <div className="w-[280px] min-w-[280px] border-r border-slate-700 flex flex-col bg-slate-800/50">
+        <div className="w-[280px] min-w-[280px] border-r border-[#C9BE9A] flex flex-col bg-[#F4F0DF]">
           {/* Header */}
-          <div className="p-4 border-b border-slate-700 flex justify-between items-center">
-            <h2 className="text-lg font-bold text-white">Export Preview</h2>
-            <button onClick={onClose} className="w-8 h-8 rounded-lg bg-slate-700 hover:bg-red-500/80 text-slate-400 hover:text-white flex items-center justify-center text-sm font-bold transition">✕</button>
+          <div className="p-4 border-b border-[#C9BE9A] flex justify-between items-center bg-[#DBCEA5]">
+            <h2 className="text-lg font-bold text-[#2F2A1F]">Export Preview</h2>
+            <button onClick={onClose} className="w-8 h-8 rounded-lg bg-themePrimary hover:bg-red-500/80 text-themeTextMuted hover:text-[#2F2A1F] flex items-center justify-center text-sm font-bold transition">✕</button>
           </div>
 
           {/* Tabs */}
-          <div className="flex border-b border-slate-700">
+          <div className="flex border-b border-[#C9BE9A]">
             <button className={tabStyle('branch')} onClick={() => { setActiveTab('branch'); setSelectedType('master'); }}>Branch</button>
             <button className={tabStyle('faculty')} onClick={() => { setActiveTab('faculty'); setSelectedType('master'); }}>Faculty</button>
             <button className={tabStyle('room')} onClick={() => { setActiveTab('room'); setSelectedType('master'); }}>Room</button>
@@ -207,7 +212,7 @@ export default function ExportPopup({ onClose }: ExportPopupProps) {
               <div className="space-y-1">
                 <button
                   onClick={() => setSelectedType('master')}
-                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-bold transition ${selectedType === 'master' ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30' : 'text-slate-300 hover:bg-slate-700/50'}`}
+                  className={`w-full text-left px-3 py-2.5 rounded-lg text-sm font-bold transition ${selectedType === 'master' ? 'bg-themePrimary/20 text-themePrimary border border-blue-500/30' : 'text-themeTextMain hover:bg-themePrimary/50'}`}
                 >
                   📋 Master Timetable
                 </button>
@@ -215,12 +220,12 @@ export default function ExportPopup({ onClose }: ExportPopupProps) {
                   const branchSems = semesters.filter((s: any) => s.branch_id === b.id);
                   return (
                     <div key={b.id} className="mt-2">
-                      <div className="px-3 py-1.5 text-xs font-bold text-emerald-400 uppercase tracking-wider">{b.name}</div>
+                      <div className="px-3 py-1.5 text-xs font-bold text-themeSecondary uppercase tracking-wider">{b.name}</div>
                       {branchSems.map((s: any) => (
                         <button
                           key={s.id}
                           onClick={() => setSelectedType(`semester:${s.id}`)}
-                          className={`w-full text-left px-3 py-2 pl-6 rounded-lg text-sm transition ${selectedType === `semester:${s.id}` ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 font-bold' : 'text-slate-400 hover:bg-slate-700/50 hover:text-slate-200'}`}
+                          className={`w-full text-left px-3 py-2 pl-6 rounded-lg text-sm transition ${selectedType === `semester:${s.id}` ? 'bg-themePrimary/20 text-themePrimary border border-blue-500/30 font-bold' : 'text-themeTextMuted hover:bg-themePrimary/50 hover:text-themeTextMain'}`}
                         >
                           {s.name}
                         </button>
@@ -237,13 +242,13 @@ export default function ExportPopup({ onClose }: ExportPopupProps) {
                   <button
                     key={f.id}
                     onClick={() => setSelectedType(`faculty:${f.id}`)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition flex items-center gap-2 ${selectedType === `faculty:${f.id}` ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 font-bold' : 'text-slate-300 hover:bg-slate-700/50'}`}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition flex items-center gap-2 ${selectedType === `faculty:${f.id}` ? 'bg-themePrimary/20 text-themePrimary border border-blue-500/30 font-bold' : 'text-themeTextMain hover:bg-themePrimary/50'}`}
                   >
                     <span className="w-6 h-6 rounded-full bg-indigo-500/20 text-indigo-400 text-xs flex items-center justify-center font-bold">{f.name?.[0]}</span>
                     {f.name}
                   </button>
                 ))}
-                {faculties.length === 0 && <p className="text-slate-500 text-xs text-center py-4">No faculty found</p>}
+                {faculties.length === 0 && <p className="text-themeTextMuted text-xs text-center py-4">No faculty found</p>}
               </div>
             )}
 
@@ -253,37 +258,37 @@ export default function ExportPopup({ onClose }: ExportPopupProps) {
                   <button
                     key={r.id}
                     onClick={() => setSelectedType(`room:${r.id}`)}
-                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition flex items-center gap-2 ${selectedType === `room:${r.id}` ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30 font-bold' : 'text-slate-300 hover:bg-slate-700/50'}`}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition flex items-center gap-2 ${selectedType === `room:${r.id}` ? 'bg-themePrimary/20 text-themePrimary border border-blue-500/30 font-bold' : 'text-themeTextMain hover:bg-themePrimary/50'}`}
                   >
-                    <span className="w-6 h-6 rounded bg-emerald-500/20 text-emerald-400 text-xs flex items-center justify-center font-bold">🚪</span>
-                    {r.name} <span className="text-slate-500 text-xs ml-auto">Cap: {r.capacity}</span>
+                    <span className="w-6 h-6 rounded bg-emerald-500/20 text-themeSecondary text-xs flex items-center justify-center font-bold">🚪</span>
+                    {r.name} <span className="text-themeTextMuted text-xs ml-auto">Cap: {r.capacity}</span>
                   </button>
                 ))}
-                {rooms.length === 0 && <p className="text-slate-500 text-xs text-center py-4">No rooms found</p>}
+                {rooms.length === 0 && <p className="text-themeTextMuted text-xs text-center py-4">No rooms found</p>}
               </div>
             )}
           </div>
 
           {/* Export Buttons */}
-          <div className="p-3 border-t border-slate-700 space-y-2">
-            <button onClick={handleExport} className="w-full py-3 bg-gradient-to-r from-emerald-600 to-emerald-500 hover:from-emerald-500 hover:to-emerald-400 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition text-sm flex items-center justify-center gap-2">
+          <div className="p-3 border-t border-[#C9BE9A] space-y-2">
+            <button onClick={handleExport} className="w-full btn-primary text-sm flex items-center justify-center gap-2">
               ⬇ Export Selected
             </button>
-            <button onClick={handleExportAll} className="w-full py-2.5 bg-slate-700 hover:bg-slate-600 text-slate-200 font-bold rounded-xl transition text-sm flex items-center justify-center gap-2">
+            <button onClick={handleExportAll} className="w-full btn-primary text-sm flex items-center justify-center gap-2">
               📦 Export All
             </button>
           </div>
         </div>
 
         {/* ══════ RIGHT PANEL — PREVIEW ══════ */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-slate-950">
+        <div className="flex-1 flex flex-col overflow-hidden bg-[#ECE7D1]">
           {/* Preview Header */}
-          <div className="p-4 border-b border-slate-700 bg-slate-900/80 flex items-center justify-between shrink-0">
+          <div className="p-4 border-b border-[#C9BE9A] bg-[#ECE7D1] flex items-center justify-between shrink-0">
             <div>
-              <h3 className="text-white font-bold text-lg">{selectionLabel}</h3>
-              <p className="text-slate-500 text-xs mt-0.5">{filteredAllocations.length} allocations • {previewColumns.length} columns</p>
+              <h3 className="text-[#2F2A1F] font-bold text-lg">{selectionLabel}</h3>
+              <p className="text-[#5E5642] text-xs mt-0.5">{filteredAllocations.length} allocations • {previewColumns.length} columns</p>
             </div>
-            <div className="px-3 py-1.5 bg-blue-500/10 border border-blue-500/20 rounded-full text-blue-400 text-xs font-bold">
+            <div className="px-3 py-1.5 bg-[#8A7650]/10 border border-themePrimary/50 rounded-full text-themePrimary text-xs font-bold">
               Preview Mode
             </div>
           </div>
@@ -292,23 +297,23 @@ export default function ExportPopup({ onClose }: ExportPopupProps) {
           <div className="flex-1 overflow-auto p-4 custom-scrollbar">
             {/* Title Header mimicking Excel */}
             <div className="mb-4 text-center">
-              <div className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-1">University Timetable</div>
-              <div className="text-white text-lg font-bold">{currentConfig?.name || 'Master Timetable'}</div>
-              <div className="text-slate-500 text-xs mt-1">{selectionLabel} • {currentConfig?.start_time?.slice(0,5)} – {currentConfig?.end_time?.slice(0,5)}</div>
+              <div className="text-themeTextMuted text-xs font-bold uppercase tracking-widest mb-1">University Timetable</div>
+              <div className="text-[#2F2A1F] text-lg font-bold">{currentConfig?.name || 'Master Timetable'}</div>
+              <div className="text-themeTextMuted text-xs mt-1">{selectionLabel} • {currentConfig?.start_time?.slice(0, 5)} – {currentConfig?.end_time?.slice(0, 5)}</div>
             </div>
 
-            <div className="bg-slate-800/50 border border-slate-700 rounded-xl overflow-hidden">
+            <div className="bg-[#DBCEA5] border border-themeSurface rounded-xl overflow-hidden">
               <table className="w-full border-collapse text-xs">
                 <thead>
-                  <tr className="bg-slate-800">
-                    <th className="border border-slate-600 p-2 text-slate-400 font-bold w-[60px] sticky left-0 bg-slate-800 z-10">Day</th>
-                    <th className="border border-slate-600 p-2 text-slate-400 font-bold w-[100px] sticky left-[60px] bg-slate-800 z-10">Time</th>
+                  <tr className="bg-themeSurface">
+                    <th className="border border-themePrimary p-2 text-themeTextMuted font-bold w-[60px] sticky left-0 bg-themeSurface z-10">Day</th>
+                    <th className="border border-themePrimary p-2 text-themeTextMuted font-bold w-[100px] sticky left-[60px] bg-themeSurface z-10">Time</th>
                     {previewColumns.length > 0 ? previewColumns.map((col) => (
-                      <th key={col.id} className="border border-slate-600 p-2 text-emerald-400 font-bold min-w-[150px] text-center">
+                      <th key={col.id} className="border border-themePrimary p-2 text-themeSecondary font-bold min-w-[150px] text-center">
                         {col.label}
                       </th>
                     )) : (
-                      <th className="border border-slate-600 p-2 text-slate-500 italic">No columns to display</th>
+                      <th className="border border-themePrimary p-2 text-themeTextMuted italic">No columns to display</th>
                     )}
                   </tr>
                 </thead>
@@ -316,23 +321,23 @@ export default function ExportPopup({ onClose }: ExportPopupProps) {
                   {DAYS.map((day) => (
                     <React.Fragment key={day}>
                       {timeslots.map((slot: any, slotIdx: number) => (
-                        <tr key={`${day}-${slot.start}`} className="hover:bg-slate-700/20 transition">
+                        <tr key={`${day}-${slot.start}`} className="hover:bg-themePrimary/20 transition">
                           {slotIdx === 0 && (
                             <td
                               rowSpan={timeslots.length}
-                              className="border border-slate-600 p-2 text-blue-400 font-bold text-center bg-slate-800/80 sticky left-0 z-10"
+                              className="border border-themePrimary p-2 text-themePrimary font-bold text-center bg-[#DBCEA5] sticky left-0 z-10"
                               style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}
                             >
                               {day.toUpperCase()}
                             </td>
                           )}
-                          <td className="border border-slate-600 p-2 text-slate-400 font-medium text-center whitespace-nowrap sticky left-[60px] bg-slate-900/90 z-10">
+                          <td className="border border-themePrimary p-2 text-themeTextMuted font-medium text-center whitespace-nowrap sticky left-[60px] bg-themeBg/90 z-10">
                             {slot.display}
                           </td>
                           {slot.type === 'break' ? (
                             <td
                               colSpan={Math.max(previewColumns.length, 1)}
-                              className="border border-slate-600 bg-slate-800/40 text-center text-slate-500 font-bold tracking-[0.3em] uppercase py-3"
+                              className="border border-themePrimary bg-themeSurface/40 text-center text-themeTextMuted font-bold tracking-[0.3em] uppercase py-3"
                             >
                               ── BREAK ──
                             </td>
@@ -340,14 +345,14 @@ export default function ExportPopup({ onClose }: ExportPopupProps) {
                             previewColumns.length > 0 ? previewColumns.map((col) => {
                               const cellAllocs = getCellAllocs(day, slot.start, col.id);
                               return (
-                                <td key={col.id} className="border border-slate-600 p-1.5 align-top min-h-[40px]">
+                                <td key={col.id} className="border border-themePrimary p-1.5 align-top min-h-[40px]">
                                   {cellAllocs.length > 0 ? (
                                     <div className="space-y-1">
                                       {cellAllocs.map((a: any) => (
-                                        <div key={a.id} className="bg-blue-900/30 border border-blue-500/20 rounded p-1.5 text-[10px] leading-tight">
+                                        <div key={a.id} className="bg-blue-900/30 border border-themePrimary/50 rounded p-1.5 text-[10px] leading-tight">
                                           <div className="font-bold text-blue-200 truncate">{subjects.find((sub: any) => sub.id === a.subject_id)?.name}</div>
-                                          <div className="text-emerald-400 truncate">{faculties.find((f: any) => f.id === a.faculty_id)?.name}</div>
-                                          <div className="flex justify-between text-slate-400">
+                                          <div className="text-themeSecondary truncate">{faculties.find((f: any) => f.id === a.faculty_id)?.name}</div>
+                                          <div className="flex justify-between text-themeTextMuted">
                                             <span>{rooms.find((r: any) => r.id === a.room_id)?.name}</span>
                                             {a.batches?.length > 0 && <span className="text-blue-300">{a.batches.join(',')}</span>}
                                           </div>
@@ -360,7 +365,7 @@ export default function ExportPopup({ onClose }: ExportPopupProps) {
                                 </td>
                               );
                             }) : (
-                              <td className="border border-slate-600 p-2 text-slate-600 italic text-center">Select an item to preview</td>
+                              <td className="border border-themePrimary p-2 text-slate-600 italic text-center">Select an item to preview</td>
                             )
                           )}
                         </tr>

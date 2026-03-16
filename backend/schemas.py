@@ -80,6 +80,7 @@ class FacultyBase(BaseModel):
     name: str
     weekly_workload_minutes: int = 2400
     config_id: Optional[int] = None
+    ignore_collision: bool = False
 
 class FacultyCreate(FacultyBase):
     pass
@@ -87,6 +88,7 @@ class FacultyCreate(FacultyBase):
 class FacultyUpdate(BaseModel):
     name: Optional[str] = None
     weekly_workload_minutes: Optional[int] = None
+    ignore_collision: Optional[bool] = None
 
 class FacultyOut(FacultyBase):
     id: int

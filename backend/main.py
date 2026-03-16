@@ -406,7 +406,11 @@ async def create_allocation(allocation: schemas.AllocationCreate, db: AsyncSessi
 
         if check_overlap(new_start, new_end, ext_start, ext_end):
             if ext.faculty_id == allocation.faculty_id:
-                raise HTTPException(status_code=400, detail="This faculty is already assigned in this time slot.")
+                # Check if this faculty is marked to ignore collisions
+                fac_result = await db.execute(select(models.Faculty).filter(models.Faculty.id == allocation.faculty_id))
+                faculty = fac_result.scalars().first()
+                if not faculty or not faculty.ignore_collision:
+                    raise HTTPException(status_code=400, detail="This faculty is already assigned in this time slot.")
 
     db_allocation = models.Allocation(**allocation.model_dump())
     db.add(db_allocation)
@@ -446,7 +450,11 @@ async def update_allocation(allocation_id: int, data: schemas.AllocationUpdate, 
 
         if check_overlap(new_start, new_end, ext_start, ext_end):
             if ext.faculty_id == prop_faculty:
-                raise HTTPException(status_code=400, detail="This faculty is already assigned in this time slot.")
+                # Check if this faculty is marked to ignore collisions
+                fac_result = await db.execute(select(models.Faculty).filter(models.Faculty.id == prop_faculty))
+                faculty = fac_result.scalars().first()
+                if not faculty or not faculty.ignore_collision:
+                    raise HTTPException(status_code=400, detail="This faculty is already assigned in this time slot.")
 
     for k, v in update_data.items():
         setattr(db_allocation, k, v)
@@ -692,8 +700,8 @@ def _build_sheet(ws, title: str, allocs, timeslots, all_subjects, all_faculties,
 @app.get("/api/export_excel")
 async def export_excel(
     config_id: int = Query(...),
-    export_type: str = Query('all'),   # all, semester, faculty, room
-    item_id: Optional[int] = Query(None),
+    mode: str = Query('all'),   # master, selected, all
+    value: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db)
 ):
     # Fetch config
@@ -720,34 +728,55 @@ async def export_excel(
 
     filename = f"{config.name or 'Timetable'}.xlsx"
 
-    if export_type == 'semester' and item_id:
-        sem = sem_map.get(item_id)
-        if sem:
-            branch_name = branch_map.get(sem.branch_id, '')
-            sheet_title = f"{branch_name} {sem.name}".strip()
-            ws = wb.create_sheet(title=sheet_title[:31])
-            allocs = [a for a in all_allocations if a.semester_id == item_id]
-            _build_sheet(ws, sheet_title, allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
-            filename = f"{branch_name}_{sem.name}_Timetable.xlsx".replace(' ', '_')
+    if mode == 'master':
+        ws = wb.create_sheet(title="Master Timetable"[:31])
+        # For master timetable, we want ONLY master allocs, or all the slots? 
+        # The prompt says: Allocation.query.filter_by(is_master=True)
+        # But wait! We do not have an is_master flag right now on the actual code, 
+        # config isolation handles "Master" vs "Departmental" already for the user if they've designed it that way. 
+        # We'll just pass all_allocations directly as we did before.
+        _build_sheet(ws, "Master Timetable", all_allocations, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
+        filename = "Master_Timetable.xlsx"
 
-    elif export_type == 'faculty' and item_id:
-        fac = next((f for f in all_faculties if f.id == item_id), None)
-        if fac:
-            ws = wb.create_sheet(title=f"Faculty_{fac.name}"[:31])
-            allocs = [a for a in all_allocations if a.faculty_id == item_id]
-            _build_sheet(ws, f"Faculty: {fac.name}", allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
-            filename = f"Faculty_{fac.name}_Timetable.xlsx".replace(' ', '_')
+    elif mode == 'selected' and value:
+        try:
+            item_type, item_id_str = value.split(':')
+            item_id = int(item_id_str)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid value format")
 
-    elif export_type == 'room' and item_id:
-        rm = next((r for r in all_rooms if r.id == item_id), None)
-        if rm:
-            ws = wb.create_sheet(title=f"Room_{rm.name}"[:31])
-            allocs = [a for a in all_allocations if a.room_id == item_id]
-            _build_sheet(ws, f"Room: {rm.name}", allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
-            filename = f"Room_{rm.name}_Timetable.xlsx".replace(' ', '_')
+        if item_type == 'semester':
+            sem = sem_map.get(item_id)
+            if sem:
+                branch_name = branch_map.get(sem.branch_id, '')
+                sheet_title = f"{branch_name} {sem.name}".strip()
+                ws = wb.create_sheet(title=sheet_title[:31])
+                allocs = [a for a in all_allocations if a.semester_id == item_id]
+                _build_sheet(ws, sheet_title, allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
+                filename = f"{branch_name}_{sem.name}_Timetable.xlsx".replace(' ', '_')
 
-    else:
-        # Export All — one sheet per semester + faculty sheets
+        elif item_type == 'faculty':
+            fac = next((f for f in all_faculties if f.id == item_id), None)
+            if fac:
+                ws = wb.create_sheet(title=f"Faculty_{fac.name}"[:31])
+                allocs = [a for a in all_allocations if a.faculty_id == item_id]
+                _build_sheet(ws, f"Faculty: {fac.name}", allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
+                filename = f"Faculty_{fac.name}_Timetable.xlsx".replace(' ', '_')
+
+        elif item_type == 'room':
+            rm = next((r for r in all_rooms if r.id == item_id), None)
+            if rm:
+                ws = wb.create_sheet(title=f"Room_{rm.name}"[:31])
+                allocs = [a for a in all_allocations if a.room_id == item_id]
+                _build_sheet(ws, f"Room: {rm.name}", allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
+                filename = f"Room_{rm.name}_Timetable.xlsx".replace(' ', '_')
+
+    elif mode == 'all':
+        # Master sheet first
+        ws_master = wb.create_sheet(title="Master Timetable"[:31])
+        _build_sheet(ws_master, "Master Timetable", all_allocations, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
+
+        # Branch sheets
         for sem in all_semesters:
             branch_name = branch_map.get(sem.branch_id, '')
             sheet_title = f"{branch_name} {sem.name}".strip()[:31]
@@ -755,13 +784,21 @@ async def export_excel(
             allocs = [a for a in all_allocations if a.semester_id == sem.id]
             _build_sheet(ws, f"{branch_name} ({sem.name})", allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
 
+        # Faculty sheets
         for fac in all_faculties:
             fac_allocs = [a for a in all_allocations if a.faculty_id == fac.id]
             if fac_allocs:
                 ws = wb.create_sheet(title=f"Fac_{fac.name}"[:31])
                 _build_sheet(ws, f"Faculty: {fac.name}", fac_allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
 
-        filename = f"{config.name or 'Timetable'}_Complete.xlsx".replace(' ', '_')
+        # Room sheets
+        for rm in all_rooms:
+            rm_allocs = [a for a in all_allocations if a.room_id == rm.id]
+            if rm_allocs:
+                ws = wb.create_sheet(title=f"Room_{rm.name}"[:31])
+                _build_sheet(ws, f"Room: {rm.name}", rm_allocs, timeslots, all_subjects, all_faculties, all_rooms, config.slot_duration_minutes)
+
+        filename = "All_Timetables.xlsx"
 
     # Fallback if no sheets were created
     if len(wb.sheetnames) == 0:
@@ -777,6 +814,7 @@ async def export_excel(
         output,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={
-            "Content-Disposition": f'attachment; filename="{filename}"'
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Access-Control-Expose-Headers": "Content-Disposition"
         }
     )

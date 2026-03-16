@@ -84,12 +84,8 @@ function generateSlots(
 
 /* ─────────────── gradient colors for slot rows ─────────────── */
 const SLOT_COLORS = [
-  'from-blue-500/20 to-indigo-500/20 border-blue-500/30',
-  'from-emerald-500/20 to-teal-500/20 border-emerald-500/30',
-  'from-violet-500/20 to-purple-500/20 border-violet-500/30',
-  'from-amber-500/20 to-orange-500/20 border-amber-500/30',
-  'from-rose-500/20 to-pink-500/20 border-rose-500/30',
-  'from-cyan-500/20 to-sky-500/20 border-cyan-500/30',
+  'from-themeSurface/80 to-themeSurface border-themePrimary/30 text-themeTextMain',
+  'from-themeSurface/70 to-themeSurface border-themePrimary/40 text-themeTextMain',
 ];
 
 /* ═══════════════════════════════════════════════════════════════
@@ -166,8 +162,8 @@ export default function Dashboard() {
     <div
       style={{
         minHeight: '100vh',
-        background: 'linear-gradient(135deg, #0a0e1a 0%, #0f1629 40%, #131b33 100%)',
-        color: '#fff',
+        background: '#ECE7D1',
+        color: '#2F2A1F',
         display: 'flex',
         fontFamily: "'Inter', sans-serif",
         position: 'relative',
@@ -183,7 +179,7 @@ export default function Dashboard() {
           width: 400,
           height: 400,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(138,118,80,0.12) 0%, transparent 70%)',
           filter: 'blur(60px)',
           pointerEvents: 'none',
         }}
@@ -196,7 +192,7 @@ export default function Dashboard() {
           width: 500,
           height: 500,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(16,185,129,0.10) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(142,151,125,0.10) 0%, transparent 70%)',
           filter: 'blur(80px)',
           pointerEvents: 'none',
         }}
@@ -212,8 +208,8 @@ export default function Dashboard() {
           flexDirection: 'column',
           alignItems: 'center',
           gap: 20,
-          borderRight: '1px solid rgba(255,255,255,0.06)',
-          background: 'rgba(255,255,255,0.02)',
+          borderRight: '1px solid #C9BE9A',
+          background: '#F4F0DF',
           backdropFilter: 'blur(12px)',
           zIndex: 1,
         }}
@@ -225,13 +221,13 @@ export default function Dashboard() {
               width: 56,
               height: 56,
               borderRadius: 16,
-              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              background: 'linear-gradient(#8A7650, #756341)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontSize: 28,
               margin: '0 auto 12px',
-              boxShadow: '0 8px 30px rgba(99,102,241,0.3)',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
               animation: 'float 4s ease-in-out infinite',
             }}
           >
@@ -241,7 +237,7 @@ export default function Dashboard() {
             style={{
               fontSize: 15,
               fontWeight: 800,
-              background: 'linear-gradient(135deg, #818cf8, #a78bfa)',
+              background: 'linear-gradient(#8A7650, #756341)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               letterSpacing: '-0.02em',
@@ -263,8 +259,8 @@ export default function Dashboard() {
             padding: '16px 0',
             border: 'none',
             borderRadius: 14,
-            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-            color: '#fff',
+            background: 'linear-gradient(#8A7650, #756341)',
+            color: '#2F2A1F',
             fontWeight: 700,
             fontSize: 15,
             cursor: 'pointer',
@@ -272,17 +268,17 @@ export default function Dashboard() {
             alignItems: 'center',
             justifyContent: 'center',
             gap: 10,
-            boxShadow: '0 6px 24px rgba(99,102,241,0.35)',
+            boxShadow: '0 6px 24px rgba(138,118,80,0.35)',
             transition: 'all 0.2s ease',
             fontFamily: "'Inter', sans-serif",
           }}
           onMouseEnter={(e) => {
             (e.target as HTMLElement).style.transform = 'translateY(-2px)';
-            (e.target as HTMLElement).style.boxShadow = '0 10px 32px rgba(99,102,241,0.5)';
+            (e.target as HTMLElement).style.boxShadow = '0 10px 32px #8A7650';
           }}
           onMouseLeave={(e) => {
             (e.target as HTMLElement).style.transform = 'translateY(0)';
-            (e.target as HTMLElement).style.boxShadow = '0 6px 24px rgba(99,102,241,0.35)';
+            (e.target as HTMLElement).style.boxShadow = '0 6px 24px rgba(138,118,80,0.35)';
           }}
         >
           <span style={{ fontSize: 20 }}>✨</span> New Timetable
@@ -295,10 +291,10 @@ export default function Dashboard() {
           style={{
             width: '100%',
             padding: '16px 0',
-            border: '1px solid rgba(255,255,255,0.1)',
+            border: '1px solid #DBCEA5',
             borderRadius: 14,
-            background: 'rgba(255,255,255,0.04)',
-            color: '#c7d2fe',
+            background: '#F4F0DF',
+            color: '#8A7650',
             fontWeight: 600,
             fontSize: 15,
             cursor: 'pointer',
@@ -310,13 +306,13 @@ export default function Dashboard() {
             fontFamily: "'Inter', sans-serif",
           }}
           onMouseEnter={(e) => {
-            (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.08)';
-            (e.target as HTMLElement).style.borderColor = 'rgba(99,102,241,0.4)';
+            (e.target as HTMLElement).style.background = '#DBCEA5';
+            (e.target as HTMLElement).style.borderColor = '#8A7650';
             (e.target as HTMLElement).style.transform = 'translateY(-2px)';
           }}
           onMouseLeave={(e) => {
-            (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
-            (e.target as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)';
+            (e.target as HTMLElement).style.background = '#DBCEA5';
+            (e.target as HTMLElement).style.borderColor = '#DBCEA5';
             (e.target as HTMLElement).style.transform = 'translateY(0)';
           }}
         >
@@ -347,7 +343,7 @@ export default function Dashboard() {
               fontSize: 32,
               fontWeight: 800,
               letterSpacing: '-0.03em',
-              background: 'linear-gradient(135deg, #e0e7ff, #c7d2fe, #a5b4fc)',
+              background: 'linear-gradient(#8A7650, #756341)',
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               margin: 0,
@@ -355,7 +351,7 @@ export default function Dashboard() {
           >
             Recent Saved Timetables
           </h2>
-          <p style={{ color: '#64748b', marginTop: 8, fontSize: 14 }}>
+          <p style={{ color: '#5E5642', marginTop: 8, fontSize: 14 }}>
             Pick up where you left off, or start something new.
           </p>
         </div>
@@ -388,8 +384,8 @@ export default function Dashboard() {
                   width: 80,
                   height: 80,
                   borderRadius: 20,
-                  background: 'rgba(99,102,241,0.08)',
-                  border: '1px solid rgba(99,102,241,0.15)',
+                  background: '#F4F0DF',
+                  border: '1px solid rgba(138,118,80,0.15)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -398,11 +394,11 @@ export default function Dashboard() {
               >
                 📋
               </div>
-              <p style={{ color: '#475569', fontSize: 16, fontWeight: 500 }}>
+              <p style={{ color: '#5E5642', fontSize: 16, fontWeight: 500 }}>
                 No recent timetables yet
               </p>
-              <p style={{ color: '#334155', fontSize: 13 }}>
-                Click <strong style={{ color: '#818cf8' }}>"New Timetable"</strong> to get started
+              <p style={{ color: '#5E5642', fontSize: 13 }}>
+                Click <strong style={{ color: '#8A7650' }}>"New Timetable"</strong> to get started
               </p>
             </div>
           ) : (
@@ -413,8 +409,8 @@ export default function Dashboard() {
                 style={{
                   padding: '20px 24px',
                   borderRadius: 16,
-                  background: 'rgba(255,255,255,0.03)',
-                  border: '1px solid rgba(255,255,255,0.06)',
+                  background: '#F4F0DF',
+                  border: '1px solid #DBCEA5',
                   cursor: 'pointer',
                   display: 'flex',
                   justifyContent: 'space-between',
@@ -423,13 +419,13 @@ export default function Dashboard() {
                   animation: `fadeInUp 0.4s ease ${i * 0.08}s both`,
                 }}
                 onMouseEnter={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = 'rgba(99,102,241,0.06)';
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(99,102,241,0.2)';
+                  (e.currentTarget as HTMLElement).style.background = '#DBCEA5';
+                  (e.currentTarget as HTMLElement).style.borderColor = '#8E977D';
                   (e.currentTarget as HTMLElement).style.transform = 'translateX(4px)';
                 }}
                 onMouseLeave={(e) => {
-                  (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)';
-                  (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.06)';
+                  (e.currentTarget as HTMLElement).style.background = '#DBCEA5';
+                  (e.currentTarget as HTMLElement).style.borderColor = '#DBCEA5';
                   (e.currentTarget as HTMLElement).style.transform = 'translateX(0)';
                 }}
               >
@@ -439,8 +435,8 @@ export default function Dashboard() {
                       width: 44,
                       height: 44,
                       borderRadius: 12,
-                      background: `linear-gradient(135deg, ${['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4'][i % 6]}22, ${['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4'][i % 6]}11)`,
-                      border: `1px solid ${['#6366f1', '#8b5cf6', '#10b981', '#f59e0b', '#ef4444', '#06b6d4'][i % 6]}33`,
+                      background: `linear-gradient(135deg, ${['#8A7650', '#8E977D', '#8E977D', '#f59e0b', '#ef4444', '#06b6d4'][i % 6]}22, ${['#8A7650', '#8E977D', '#8E977D', '#f59e0b', '#ef4444', '#06b6d4'][i % 6]}11)`,
+                      border: `1px solid ${['#8A7650', '#8E977D', '#8E977D', '#f59e0b', '#ef4444', '#06b6d4'][i % 6]}33`,
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'center',
@@ -455,21 +451,21 @@ export default function Dashboard() {
                       style={{
                         fontSize: 16,
                         fontWeight: 700,
-                        color: '#e2e8f0',
+                        color: '#2F2A1F',
                         margin: 0,
                         letterSpacing: '-0.01em',
                       }}
                     >
                       {c.name || 'Untitled Timetable'}
                     </h3>
-                    <p style={{ fontSize: 12, color: '#64748b', margin: '4px 0 0' }}>
+                    <p style={{ fontSize: 12, color: '#5E5642', margin: '4px 0 0' }}>
                       {formatTime12(c.start_time)} – {formatTime12(c.end_time)} &nbsp;|&nbsp; {c.slot_duration_minutes}min slots
                     </p>
                   </div>
                 </div>
                 <span
                   style={{
-                    color: '#818cf8',
+                    color: '#8A7650',
                     fontWeight: 600,
                     fontSize: 14,
                     display: 'flex',
@@ -491,7 +487,7 @@ export default function Dashboard() {
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.65)',
+            background: 'rgba(43,43,43,0.5)',
             backdropFilter: 'blur(8px)',
             display: 'flex',
             alignItems: 'center',
@@ -504,8 +500,8 @@ export default function Dashboard() {
           <div
             onClick={(e) => e.stopPropagation()}
             style={{
-              background: 'linear-gradient(160deg, #151c32 0%, #111827 100%)',
-              border: '1px solid rgba(255,255,255,0.08)',
+              background: '#F4F0DF',
+              border: '1px solid #DBCEA5',
               borderRadius: 24,
               width: '90%',
               maxWidth: 820,
@@ -513,7 +509,7 @@ export default function Dashboard() {
               overflow: 'hidden',
               display: 'flex',
               flexDirection: 'column',
-              boxShadow: '0 30px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(99,102,241,0.08)',
+              boxShadow: '0 30px 80px rgba(0,0,0,0.5), 0 0 0 1px #DBCEA5',
               animation: 'slideUp 0.35s ease',
             }}
           >
@@ -521,7 +517,7 @@ export default function Dashboard() {
             <div
               style={{
                 padding: '24px 32px',
-                borderBottom: '1px solid rgba(255,255,255,0.06)',
+                borderBottom: '1px solid #DBCEA5',
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
@@ -532,7 +528,7 @@ export default function Dashboard() {
                   margin: 0,
                   fontSize: 22,
                   fontWeight: 800,
-                  background: 'linear-gradient(135deg, #e0e7ff, #c7d2fe)',
+                  background: 'linear-gradient(135deg, #e0e7ff, #8A7650)',
                   WebkitBackgroundClip: 'text',
                   WebkitTextFillColor: 'transparent',
                   letterSpacing: '-0.02em',
@@ -547,9 +543,9 @@ export default function Dashboard() {
                   width: 36,
                   height: 36,
                   borderRadius: 10,
-                  border: '1px solid rgba(255,255,255,0.08)',
-                  background: 'rgba(255,255,255,0.04)',
-                  color: '#94a3b8',
+                  border: '1px solid #DBCEA5',
+                  background: '#F4F0DF',
+                  color: '#5E5642',
                   fontSize: 18,
                   cursor: 'pointer',
                   display: 'flex',
@@ -564,9 +560,9 @@ export default function Dashboard() {
                   (e.target as HTMLElement).style.color = '#f87171';
                 }}
                 onMouseLeave={(e) => {
-                  (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.04)';
-                  (e.target as HTMLElement).style.borderColor = 'rgba(255,255,255,0.08)';
-                  (e.target as HTMLElement).style.color = '#94a3b8';
+                  (e.target as HTMLElement).style.background = '#DBCEA5';
+                  (e.target as HTMLElement).style.borderColor = '#DBCEA5';
+                  (e.target as HTMLElement).style.color = '#5A5A5A';
                 }}
               >
                 ✕
@@ -604,11 +600,11 @@ export default function Dashboard() {
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     style={inputStyle}
                     onFocus={(e) => {
-                      (e.target as HTMLElement).style.borderColor = 'rgba(99,102,241,0.5)';
-                      (e.target as HTMLElement).style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)';
+                      (e.target as HTMLElement).style.borderColor = '#8A7650';
+                      (e.target as HTMLElement).style.boxShadow = '0 0 0 3px rgba(138,118,80,0.1)';
                     }}
                     onBlur={(e) => {
-                      (e.target as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)';
+                      (e.target as HTMLElement).style.borderColor = '#DBCEA5';
                       (e.target as HTMLElement).style.boxShadow = 'none';
                     }}
                   />
@@ -659,7 +655,7 @@ export default function Dashboard() {
                         right: 14,
                         top: '50%',
                         transform: 'translateY(-50%)',
-                        color: '#64748b',
+                        color: '#5E5642',
                         fontSize: 12,
                         fontWeight: 600,
                         pointerEvents: 'none',
@@ -675,18 +671,18 @@ export default function Dashboard() {
                   style={{
                     padding: 16,
                     borderRadius: 14,
-                    background: 'rgba(245,158,11,0.04)',
-                    border: '1px solid rgba(245,158,11,0.12)',
+                    background: '#F4F0DF',
+                    border: '1px solid #DBCEA5',
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <label style={{ ...labelStyle, color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      ☕ Break Times <span style={{ color: '#64748b', fontWeight: 400, fontSize: 11 }}>(optional)</span>
+                    <label style={{ ...labelStyle, color: '#8A7650', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      ☕ Break Times <span style={{ color: '#5E5642', fontWeight: 400, fontSize: 11 }}>(optional)</span>
                     </label>
                     <button
                       type="button"
                       onClick={() => setFormData({ ...formData, breaks: [...formData.breaks, { id: Date.now(), start_time: '14:00', duration_minutes: 15 }] })}
-                      style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                      style={{ background: 'rgba(138,118,80,0.15)', color: '#8A7650', border: 'none', borderRadius: 8, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                     >
                       + Add Break
                     </button>
@@ -704,10 +700,10 @@ export default function Dashboard() {
                               newBreaks[index].start_time = e.target.value;
                               setFormData({ ...formData, breaks: newBreaks });
                             }}
-                            style={{ ...inputStyle, background: 'rgba(0,0,0,0.3)' }}
+                            style={{ ...inputStyle, background: '#FFFFFF' }}
                           />
                         </div>
-                        <span style={{ color: '#64748b', fontSize: 13, fontWeight: 600 }}>for</span>
+                        <span style={{ color: '#5E5642', fontSize: 13, fontWeight: 600 }}>for</span>
                         <div style={{ position: 'relative', width: 100 }}>
                           <select
                             value={brk.duration_minutes}
@@ -716,7 +712,7 @@ export default function Dashboard() {
                               newBreaks[index].duration_minutes = parseInt(e.target.value);
                               setFormData({ ...formData, breaks: newBreaks });
                             }}
-                            style={{ ...inputStyle, background: 'rgba(0,0,0,0.3)', paddingRight: 10, appearance: 'none', MozAppearance: 'none', WebkitAppearance: 'none' }}
+                            style={{ ...inputStyle, background: '#FFFFFF', paddingRight: 10, appearance: 'none', MozAppearance: 'none', WebkitAppearance: 'none' }}
                           >
                             <option value={15}>15 mins</option>
                             <option value={30}>30 mins</option>
@@ -739,7 +735,7 @@ export default function Dashboard() {
                       </div>
                     ))}
                     {formData.breaks.length === 0 && (
-                      <div style={{ color: '#94a3b8', fontSize: 13, fontStyle: 'italic', padding: '10px 0' }}>No breaks configured</div>
+                      <div style={{ color: '#5E5642', fontSize: 13, fontStyle: 'italic', padding: '10px 0' }}>No breaks configured</div>
                     )}
                   </div>
                 </div>
@@ -753,23 +749,23 @@ export default function Dashboard() {
                     padding: '14px 0',
                     border: 'none',
                     borderRadius: 14,
-                    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-                    color: '#fff',
+                    background: 'linear-gradient(#8A7650, #756341)',
+                    color: '#2F2A1F',
                     fontWeight: 700,
                     fontSize: 15,
                     cursor: 'pointer',
-                    boxShadow: '0 6px 24px rgba(99,102,241,0.35)',
+                    boxShadow: '0 6px 24px rgba(138,118,80,0.35)',
                     transition: 'all 0.2s ease',
                     fontFamily: "'Inter', sans-serif",
                     letterSpacing: '-0.01em',
                   }}
                   onMouseEnter={(e) => {
                     (e.target as HTMLElement).style.transform = 'translateY(-2px)';
-                    (e.target as HTMLElement).style.boxShadow = '0 10px 32px rgba(99,102,241,0.5)';
+                    (e.target as HTMLElement).style.boxShadow = '0 10px 32px #8A7650';
                   }}
                   onMouseLeave={(e) => {
                     (e.target as HTMLElement).style.transform = 'translateY(0)';
-                    (e.target as HTMLElement).style.boxShadow = '0 6px 24px rgba(99,102,241,0.35)';
+                    (e.target as HTMLElement).style.boxShadow = '0 6px 24px rgba(138,118,80,0.35)';
                   }}
                 >
                   Next →
@@ -780,8 +776,8 @@ export default function Dashboard() {
               <div
                 style={{
                   width: 300,
-                  borderLeft: '1px solid rgba(255,255,255,0.06)',
-                  background: 'rgba(0,0,0,0.15)',
+                  borderLeft: '1px solid #DBCEA5',
+                  background: '#ECE7D1',
                   padding: '24px 20px',
                   display: 'flex',
                   flexDirection: 'column',
@@ -792,7 +788,7 @@ export default function Dashboard() {
                   style={{
                     fontSize: 13,
                     fontWeight: 700,
-                    color: '#94a3b8',
+                    color: '#5E5642',
                     textTransform: 'uppercase',
                     letterSpacing: '0.06em',
                     marginTop: 0,
@@ -807,7 +803,7 @@ export default function Dashboard() {
                       width: 6,
                       height: 6,
                       borderRadius: '50%',
-                      background: '#10b981',
+                      background: '#8E977D',
                       display: 'inline-block',
                       animation: 'pulse-glow 2s infinite',
                     }}
@@ -817,14 +813,14 @@ export default function Dashboard() {
 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {slots.length === 0 ? (
-                    <p style={{ color: '#475569', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
+                    <p style={{ color: '#5E5642', fontSize: 13, textAlign: 'center', padding: '20px 0' }}>
                       Adjust settings to see slots
                     </p>
                   ) : (
                     slots.map((slot, idx) => (
                       <div
                         key={idx}
-                        className={`bg-gradient-to-r ${slot.isBreak ? 'from-amber-500/15 to-orange-500/15 border-amber-500/25' : SLOT_COLORS[idx % SLOT_COLORS.length]}`}
+                        className={SLOT_COLORS[idx % SLOT_COLORS.length]}
                         style={{
                           padding: '10px 14px',
                           borderRadius: 10,
@@ -839,11 +835,11 @@ export default function Dashboard() {
                           animation: `fadeInUp 0.3s ease ${idx * 0.03}s both`,
                         }}
                       >
-                        <span style={{ color: slot.isBreak ? '#fbbf24' : '#e2e8f0' }}>
+                        <span style={{ color: slot.isBreak ? '#8A7650' : '#2B2B2B' }}>
                           {formatTime12(slot.start)}
                         </span>
-                        <span style={{ color: '#475569', fontSize: 11 }}>→</span>
-                        <span style={{ color: slot.isBreak ? '#fbbf24' : '#e2e8f0' }}>
+                        <span style={{ color: '#5E5642', fontSize: 11 }}>→</span>
+                        <span style={{ color: slot.isBreak ? '#8A7650' : '#2B2B2B' }}>
                           {formatTime12(slot.end)}
                         </span>
                         {slot.isBreak && (
@@ -859,9 +855,9 @@ export default function Dashboard() {
                     style={{
                       marginTop: 'auto',
                       paddingTop: 16,
-                      borderTop: '1px solid rgba(255,255,255,0.06)',
+                      borderTop: '1px solid #DBCEA5',
                       fontSize: 12,
-                      color: '#64748b',
+                      color: '#5E5642',
                       textAlign: 'center',
                     }}
                   >
@@ -882,7 +878,7 @@ const labelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: 12,
   fontWeight: 600,
-  color: '#94a3b8',
+  color: '#5E5642',
   marginBottom: 8,
   letterSpacing: '0.02em',
 };
@@ -890,10 +886,10 @@ const labelStyle: React.CSSProperties = {
 const inputStyle: React.CSSProperties = {
   width: '100%',
   padding: '12px 14px',
-  borderRadius: 12,
-  border: '1px solid rgba(255,255,255,0.1)',
-  background: 'rgba(0,0,0,0.2)',
-  color: '#e2e8f0',
+  borderRadius: 8,
+  border: '1px solid #C9BE9A',
+  background: '#FFFFFF',
+  color: '#2F2A1F',
   fontSize: 14,
   fontWeight: 500,
   outline: 'none',
