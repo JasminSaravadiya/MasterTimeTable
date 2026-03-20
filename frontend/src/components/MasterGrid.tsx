@@ -122,7 +122,7 @@ export default function MasterGrid() {
           </p>
         </div>
         <div className="flex gap-4">
-          <button onClick={() => navigate('/configure')} className="btn-primary">⚙ Settings</button>
+          <button onClick={() => navigate('/configure')} className="btn-primary">⚙ Data</button>
           <button onClick={() => setShowExportPopup(true)} className="btn-primary">Export &rarr;</button>
         </div>
       </div>
